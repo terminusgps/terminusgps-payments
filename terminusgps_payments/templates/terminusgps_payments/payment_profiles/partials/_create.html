@@ -1,0 +1,5 @@
+<form hx-post="{% url 'payments:create payment profile' %}" hx-target="this" method="post">
+    {% csrf_token %}
+    {{ form }}
+    <button class="" type="submit">Submit</button>
+</form>

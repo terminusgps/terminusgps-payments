@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <title>{% if title %}{{ title }} | {% endif %}Terminus GPS Payments</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1"/>
+        <link rel="icon" href="{% static 'terminusgps_payments/favicon.ico' %}">
+        <link rel="stylesheet" href="{% static 'terminusgps_payments/css/output.css' %}">
+        <script src="{% static 'terminusgps_payments/js/htmx.min.js' %}" defer></script>
+    </head>
+    <body class="h-fit bg-gradient-to-b from-terminus-red-100 to-terminus-red-900 bg-no-repeat text-gray-800 dark:text-gray-100">
+        <main class="container mx-auto -mt-2 max-w-screen-lg">
+            <div class="border-lr mx-8 border-gray-600 bg-stone-100 dark:bg-terminus-gray-800">
+                <div class="flex flex-col gap-8 p-8">
+                    {% block content %}{% endblock content %}
+                </div>
+            </div>
+        </main>
+    </body>
+</html>
