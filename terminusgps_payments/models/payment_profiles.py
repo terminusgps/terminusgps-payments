@@ -37,6 +37,11 @@ class PaymentProfile(models.Model):
             else f"Payment Profile #{self.pk}"
         )
 
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "payments:detail payment profile", kwargs={"profile_pk": self.pk}
+        )
+
     def save(self, **kwargs) -> None:
         """Sets :py:attr:`cc_last_4` and :py:attr:`cc_type` if necessary before saving."""
         if self._needs_authorizenet_hydration():
@@ -55,11 +60,6 @@ class PaymentProfile(models.Model):
                     if hasattr(cc, "cardNumber"):
                         self.cc_last_4 = str(cc.cardNumber)[-4:]
         return super().save(**kwargs)
-
-    def get_absolute_url(self) -> str:
-        return reverse(
-            "payments:detail payment profile", kwargs={"payment_pk": self.pk}
-        )
 
     def get_authorizenet_profile(self, include_issuer_info: bool = False):
         """Returns the customer payment profile from Authorizenet."""

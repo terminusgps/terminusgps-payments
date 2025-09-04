@@ -1,0 +1,5 @@
+<form action="{% url 'payments:create subscription' %}" method="post">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Submit</button>
+</form>

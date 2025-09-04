@@ -146,22 +146,26 @@ class AuthorizenetCreditCardWidget(forms.widgets.MultiWidget):
     def decompress(self, value) -> list[str | None]:
         if value:
             year, month = str(value.expirationDate).split("-")
-            return [str(value.cardNumber), month, year, str(value.cardCode)]
+            return [
+                str(value.cardNumber),
+                month,
+                year[-2:],
+                str(value.cardCode),
+            ]
         return [None, None, None, None]
 
 
 class AuthorizenetCreditCardField(forms.MultiValueField):
     def __init__(self, **kwargs) -> None:
         error_messages = {}
+        current_year = int(str(timezone.now().year)[-2:])
         fields = (
             forms.CharField(label="Card #", min_length=16),
             forms.IntegerField(
                 label="Expiry Month", min_value=1, max_value=12
             ),
             forms.IntegerField(
-                label="Expiry Year",
-                min_value=int(str(timezone.now().year)[-2:]),
-                max_value=99,
+                label="Expiry Year", min_value=current_year, max_value=99
             ),
             forms.CharField(label="CCV #", min_length=3, max_length=4),
         )

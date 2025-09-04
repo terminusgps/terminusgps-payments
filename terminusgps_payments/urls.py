@@ -45,4 +45,29 @@ urlpatterns = [
         views.AddressProfileDeleteView.as_view(),
         name="delete address profile",
     ),
+    path(
+        "subscriptions/create/",
+        views.SubscriptionCreateView.as_view(),
+        name="create subscription",
+    ),
+    path(
+        "subscriptions/list/",
+        views.SubscriptionListView.as_view(),
+        name="list subscription",
+    ),
+    path(
+        "subscriptions/<int:subscription_pk>/detail/",
+        views.SubscriptionDetailView.as_view(),
+        name="detail subscription",
+    ),
+    path(
+        "subscriptions/<int:subscription_pk>/update/",
+        views.SubscriptionUpdateView.as_view(),
+        name="update subscription",
+    ),
+    path(
+        "subscriptions/<int:subscription_pk>/delete/",
+        views.SubscriptionDeleteView.as_view(),
+        name="delete subscription",
+    ),
 ]

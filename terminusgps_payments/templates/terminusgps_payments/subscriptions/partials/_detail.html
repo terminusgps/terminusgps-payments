@@ -1,0 +1,16 @@
+{% with subscription.schedule.interval as interval %}
+<section id="subscription" class="flex flex-col gap-4 rounded border-2 border-current bg-gray-300 p-4" hx-target="this" hx-swap="outerHTML">
+    <section class="flex items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold md:text-lg">{{ subscription.name }}</h2>
+        <p class="font-semibold">${{ subscription.amount }}</p>
+    </section>
+    <section class="flex flex-col items-center gap-2 text-center text-pretty md:flex-row">
+        <a class="w-full rounded border bg-gray-200 p-2 transition-colors duration-300 ease-in-out hover:bg-gray-100" href="{{ subscription.payment_profile.get_absolute_url }}">{{ subscription.payment_profile }}</a>
+        <a class="w-full rounded border bg-gray-200 p-2 transition-colors duration-300 ease-in-out hover:bg-gray-100" href="{{ subscription.address_profile.get_absolute_url }}">{{ subscription.address_profile }}</a>
+    </section>
+    <section class="flex flex-col items-center gap-2 text-center text-pretty">
+        <button class="w-full cursor-pointer rounded border bg-blue-500 p-2 text-gray-100 transition-colors duration-300 ease-in-out hover:bg-blue-200 hover:text-gray-600" hx-get="{% url 'payments:update subscription' subscription.pk %}">Update</button>
+        <button class="w-full cursor-pointer rounded border bg-red-500 p-2 text-gray-100 transition-colors duration-300 ease-in-out hover:bg-red-200 hover:text-gray-600" hx-get="{% url 'payments:delete subscription' subscription.pk %}">Cancel</button>
+    </section>
+</section>
+{% endwith %}

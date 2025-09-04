@@ -1,5 +1,3 @@
-import typing
-
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import QuerySet
 from django.urls import reverse_lazy
@@ -51,15 +49,15 @@ class PaymentProfileDetailView(
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
-    def get_queryset(self) -> QuerySet[PaymentProfile, PaymentProfile]:
-        return PaymentProfile.objects.filter(
+    def get_queryset(self) -> QuerySet:
+        return self.model.objects.filter(
             customer_profile__user=self.request.user
         )
 
-    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
-        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        if payment_profile := kwargs.get("object"):
-            context["profile"] = payment_profile.get_authorizenet_profile()
+    def get_context_data(self, **kwargs) -> dict:
+        context: dict = super().get_context_data(**kwargs)
+        if obj := kwargs.get("object"):
+            context["profile"] = obj.get_authorizenet_profile()
         return context
 
 

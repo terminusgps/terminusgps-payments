@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from authorizenet import apicontractsv1
 from django.db import models, transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from terminusgps.authorizenet import subscriptions
@@ -120,6 +121,11 @@ class Subscription(models.Model):
     def __str__(self) -> str:
         """Returns the subscription's name or 'Subscription #<pk>'."""
         return str(self.name) if self.name else f"Subscription #{self.pk}"
+
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "payments:detail subscription", kwargs={"subscription_pk": self.pk}
+        )
 
     def to_xml(
         self, fields: Sequence[str] | None = None
