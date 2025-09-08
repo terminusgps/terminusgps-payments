@@ -1,7 +1,5 @@
 from django.db import models
-from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from terminusgps.authorizenet import api as anet
 
 
 class AddressProfile(models.Model):
@@ -31,32 +29,6 @@ class AddressProfile(models.Model):
             str(self.street) if self.street else f"Address Profile #{self.pk}"
         )
 
-    def save(self, **kwargs) -> None:
-        """Sets :py:attr:`street` if necessary before saving."""
-        if self._needs_authorizenet_hydration():
-            response = self.get_authorizenet_profile()
-            if response is not None and all(
-                [
-                    hasattr(response, "address"),
-                    hasattr(response.address, "address"),
-                ]
-            ):
-                self.street = str(response.address.address)
-        return super().save(**kwargs)
-
-    def get_absolute_url(self) -> str:
-        return reverse(
-            "payments:detail address profile", kwargs={"profile_pk": self.pk}
-        )
-
-    def get_authorizenet_profile(self):
-        """Returns the customer shipping address profile from Authorizenet."""
-        if self.customer_profile.pk and self.pk:
-            return anet.get_customer_shipping_address(
-                customer_profile_id=self.customer_profile.pk,
-                address_profile_id=self.pk,
-            )
-
-    def _needs_authorizenet_hydration(self) -> bool:
+    def needs_authorizenet_hydration(self) -> bool:
         """Whether the shipping address needs to retrieve data from Authorizenet."""
         return not all([self.street])

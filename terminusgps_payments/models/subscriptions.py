@@ -1,10 +1,9 @@
 import collections.abc
 
 from authorizenet import apicontractsv1
-from django.db import models, transaction
+from django.db import models
 from django.urls import reverse
 from django.utils import timezone
-from terminusgps.authorizenet import api as anet
 from terminusgps.authorizenet import constants
 
 
@@ -114,19 +113,37 @@ class Subscription(models.Model):
         )
 
     def to_xml(
-        self, fields: collections.abc.Collection[str] | None = None
+        self, fields: collections.abc.Container[str] | None = None
     ) -> apicontractsv1.ARBSubscriptionType:
+        """
+        Returns the subscription as an instance of :py:obj:`~authorizenet.apicontractsv1.ARBSubscriptionType`.
+
+        Allowed fields:
+
+            * "name"
+            * "schedule"
+            * "amount"
+            * "trial_amount"
+            * "payment_profile"
+            * "address_profile"
+
+        :param fields: A container of fields to serialize. If not provided, all fields are serialized. Default is :py:obj:`None`.
+        :type fields: ~collections.abc.Container | None
+        :returns: An Authorizenet ARBSubscriptionType element.
+        :rtype: ~authorizenet.apicontractsv1.ARBSubscriptionType
+
+        """
         xml = apicontractsv1.ARBSubscriptionType()
         if fields is None:
             # Add all fields to return value
-            fields = [
+            fields = (
                 "name",
                 "schedule",
                 "amount",
                 "trial_amount",
                 "payment_profile",
                 "address_profile",
-            ]
+            )
 
         if "name" in fields:
             xml.name = self.name
@@ -143,25 +160,3 @@ class Subscription(models.Model):
             sub_profile.customerPaymentProfileId = str(self.payment_profile.pk)
             xml.profile = sub_profile
         return xml
-
-    @transaction.atomic
-    def refresh_status(self) -> str | None:
-        """Retrieves the subscription's current status from Authorizenet, sets it and returns it."""
-        if new_status := self.get_anet_status():
-            self.status = new_status
-            return new_status
-
-    def get_anet_status(self) -> str | None:
-        """Returns the subscription's status from Authorizenet."""
-        if self.pk:
-            response = anet.get_subscription_status(subscription_id=self.pk)
-            if response is not None and hasattr(response, "status"):
-                return str(response.status)
-
-    def get_anet_subscription(self, include_transactions: bool = False):
-        """Returns the subscription from Authorizenet."""
-        if self.pk:
-            return anet.get_subscription(
-                subscription_id=self.pk,
-                include_transactions=include_transactions,
-            )

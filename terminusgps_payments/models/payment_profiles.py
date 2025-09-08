@@ -1,7 +1,6 @@
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from terminusgps.authorizenet import api as anet
 
 
 class PaymentProfile(models.Model):
@@ -42,33 +41,6 @@ class PaymentProfile(models.Model):
             "payments:detail payment profile", kwargs={"profile_pk": self.pk}
         )
 
-    def save(self, **kwargs) -> None:
-        """Sets :py:attr:`cc_last_4` and :py:attr:`cc_type` if necessary before saving."""
-        if self._needs_authorizenet_hydration():
-            response = self.get_authorizenet_profile()
-            if response is not None and all(
-                [
-                    hasattr(response, "paymentProfile"),
-                    hasattr(response.paymentProfile, "payment"),
-                    hasattr(response.paymentProfile.payment, "creditCard"),
-                ]
-            ):
-                card = response.paymentProfile.payment.creditCard
-                if hasattr(card, "cardType"):
-                    self.cc_type = str(card.cardType)
-                if hasattr(card, "cardNumber"):
-                    self.cc_last_4 = str(card.cardNumber)[-4:]
-        return super().save(**kwargs)
-
-    def get_authorizenet_profile(self, include_issuer_info: bool = False):
-        """Returns the customer payment profile from Authorizenet."""
-        if self.customer_profile.pk and self.pk:
-            return anet.get_customer_payment_profile(
-                customer_profile_id=self.customer_profile.pk,
-                payment_profile_id=self.pk,
-                include_issuer_info=include_issuer_info,
-            )
-
-    def _needs_authorizenet_hydration(self) -> bool:
+    def needs_authorizenet_hydration(self) -> bool:
         """Whether the payment method needs to retrieve data from Authorizenet."""
         return not all([self.cc_last_4, self.cc_type])
