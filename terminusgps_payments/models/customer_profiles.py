@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from terminusgps.authorizenet import profiles
+from terminusgps.authorizenet import api as anet
 
 
 class CustomerProfile(models.Model):
@@ -23,7 +23,7 @@ class CustomerProfile(models.Model):
     def get_authorizenet_profile(self, include_issuer_info: bool = False):
         """Returns the customer profile from Authorizenet."""
         if self.pk:
-            return profiles.get_customer_profile(
+            return anet.get_customer_profile(
                 customer_profile_id=self.pk,
                 include_issuer_info=include_issuer_info,
             )

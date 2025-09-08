@@ -13,19 +13,13 @@ from django.views.generic import (
     ListView,
     UpdateView,
 )
-from terminusgps.authorizenet import subscriptions
+from terminusgps.authorizenet import api as anet
 from terminusgps.authorizenet.controllers import (
     AuthorizenetControllerExecutionError,
 )
 from terminusgps.django.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments.models import (
-    AddressProfile,
-    PaymentProfile,
-    Subscription,
-    SubscriptionSchedule,
-    SubscriptionScheduleInterval,
-)
+from terminusgps_payments import models
 
 
 class SubscriptionCreateView(
@@ -41,7 +35,7 @@ class SubscriptionCreateView(
         "trial_amount",
     ]
     http_method_names = ["get", "post"]
-    model = Subscription
+    model = models.Subscription
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_create.html"
     )
@@ -50,15 +44,17 @@ class SubscriptionCreateView(
     @transaction.atomic
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
-            interval, _ = SubscriptionScheduleInterval.objects.get_or_create(
-                name="Monthly Payment Interval",
-                length=1,
-                unit=SubscriptionScheduleInterval.IntervalUnit.MONTHS,
+            interval, _ = (
+                models.SubscriptionScheduleInterval.objects.get_or_create(
+                    name="Monthly Payment Interval",
+                    length=1,
+                    unit=models.SubscriptionScheduleInterval.IntervalUnit.MONTHS,
+                )
             )
-            subscription = Subscription(
+            subscription = models.Subscription(
                 id=None,
                 name=form.cleaned_data["name"],
-                schedule=SubscriptionSchedule.objects.create(
+                schedule=models.SubscriptionSchedule.objects.create(
                     interval=interval, start_date=timezone.now()
                 ),
                 customer_profile=form.cleaned_data["customer_profile"],
@@ -67,7 +63,7 @@ class SubscriptionCreateView(
                 amount=form.cleaned_data["amount"],
                 trial_amount=form.cleaned_data["trial_amount"],
             )
-            response = subscriptions.create_subscription(subscription.to_xml())
+            response = anet.create_subscription(subscription.to_xml())
             subscription.pk = int(response.subscriptionId)
             subscription.save()
             return HttpResponseRedirect(subscription.get_absolute_url())
@@ -90,16 +86,18 @@ class SubscriptionDetailView(
 ):
     content_type = "text/html"
     http_method_names = ["get"]
-    model = Subscription
+    model = models.Subscription
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_detail.html"
     )
     pk_url_kwarg = "subscription_pk"
-    queryset = Subscription.objects.none()
+    queryset = models.Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/detail.html"
 
-    def get_queryset(self) -> QuerySet[Subscription, Subscription]:
-        return Subscription.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.Subscription, models.Subscription]:
+        return models.Subscription.objects.filter(
             customer_profile__user=self.request.user
         )
 
@@ -110,17 +108,19 @@ class SubscriptionListView(
     allow_empty = True
     content_type = "text/html"
     http_method_names = ["get"]
-    model = Subscription
+    model = models.Subscription
     ordering = "name"
     paginate_by = 4
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_list.html"
     )
-    queryset = Subscription.objects.none()
+    queryset = models.Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/list.html"
 
-    def get_queryset(self) -> QuerySet[Subscription, Subscription]:
-        return Subscription.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.Subscription, models.Subscription]:
+        return models.Subscription.objects.filter(
             customer_profile__user=self.request.user
         ).order_by(self.get_ordering())
 
@@ -130,17 +130,23 @@ class SubscriptionDeleteView(
 ):
     content_type = "text/html"
     http_method_names = ["get", "post"]
-    model = Subscription
+    model = models.Subscription
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_delete.html"
     )
     pk_url_kwarg = "subscription_pk"
-    queryset = Subscription.objects.none()
+    queryset = models.Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/delete.html"
     success_url = reverse_lazy("payments:list subscription")
 
-    def get_queryset(self) -> QuerySet[Subscription, Subscription]:
-        return Subscription.objects.filter(
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        anet.cancel_subscription(self.object.pk)
+        return super().form_valid(form=form)
+
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.Subscription, models.Subscription]:
+        return models.Subscription.objects.filter(
             customer_profile__user=self.request.user
         )
 
@@ -149,24 +155,28 @@ class SubscriptionUpdateView(
     LoginRequiredMixin, HtmxTemplateResponseMixin, UpdateView
 ):
     content_type = "text/html"
-    fields = ["payment_profile", "address_profile", "name"]
+    fields = ["payment_profile", "address_profile"]
     http_method_names = ["get", "post"]
-    model = Subscription
+    model = models.Subscription
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_update.html"
     )
     pk_url_kwarg = "subscription_pk"
-    queryset = Subscription.objects.none()
+    queryset = models.Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/update.html"
+
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        if form.changed_data:
+            anet.update_subscription(
+                self.object.pk, self.object.to_xml(fields=form.changed_data)
+            )
+        return super().form_valid(form=form)
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class=form_class)
-        form.fields["name"].widget.attrs.update(
-            {"class": "p-2 rounded border bg-white"}
-        )
         form.fields[
             "payment_profile"
-        ].queryset = PaymentProfile.objects.filter(
+        ].queryset = models.PaymentProfile.objects.filter(
             customer_profile__user=self.request.user
         )
         form.fields["payment_profile"].empty_label = None
@@ -175,7 +185,7 @@ class SubscriptionUpdateView(
         )
         form.fields[
             "address_profile"
-        ].queryset = AddressProfile.objects.filter(
+        ].queryset = models.AddressProfile.objects.filter(
             customer_profile__user=self.request.user
         )
         form.fields["address_profile"].empty_label = None
@@ -184,7 +194,9 @@ class SubscriptionUpdateView(
         )
         return form
 
-    def get_queryset(self) -> QuerySet[Subscription, Subscription]:
-        return Subscription.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.Subscription, models.Subscription]:
+        return models.Subscription.objects.filter(
             customer_profile__user=self.request.user
         )

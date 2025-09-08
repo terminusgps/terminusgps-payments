@@ -4,8 +4,7 @@ from django.urls import reverse_lazy
 from django.views.generic import DeleteView, DetailView, FormView, ListView
 from terminusgps.django.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import forms
-from terminusgps_payments.models import PaymentProfile
+from terminusgps_payments import forms, models
 
 
 class PaymentProfileCreateView(
@@ -39,13 +38,13 @@ class PaymentProfileDetailView(
 ):
     content_type = "text/html"
     http_method_names = ["get"]
-    model = PaymentProfile
+    model = models.PaymentProfile
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_detail.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = PaymentProfile.objects.none()
+    queryset = models.PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
@@ -66,18 +65,20 @@ class PaymentProfileDeleteView(
 ):
     content_type = "text/html"
     http_method_names = ["get", "post"]
-    model = PaymentProfile
+    model = models.PaymentProfile
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_delete.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = PaymentProfile.objects.none()
+    queryset = models.PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/delete.html"
 
-    def get_queryset(self) -> QuerySet[PaymentProfile, PaymentProfile]:
-        return PaymentProfile.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.PaymentProfile, models.PaymentProfile]:
+        return models.PaymentProfile.objects.filter(
             customer_profile__user=self.request.user
         )
 
@@ -88,18 +89,20 @@ class PaymentProfileListView(
     allow_empty = True
     content_type = "text/html"
     http_method_names = ["get"]
-    model = PaymentProfile
+    model = models.PaymentProfile
     ordering = "pk"
     paginate_by = 4
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_list.html"
     )
     permission_denied_message = "Please login to view this content."
-    queryset = PaymentProfile.objects.none()
+    queryset = models.PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/list.html"
 
-    def get_queryset(self) -> QuerySet[PaymentProfile, PaymentProfile]:
-        return PaymentProfile.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.PaymentProfile, models.PaymentProfile]:
+        return models.PaymentProfile.objects.filter(
             customer_profile__user=self.request.user
         ).order_by(self.get_ordering())

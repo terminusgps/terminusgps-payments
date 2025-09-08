@@ -1,7 +1,7 @@
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from terminusgps.authorizenet import profiles
+from terminusgps.authorizenet import api as anet
 
 
 class AddressProfile(models.Model):
@@ -19,7 +19,7 @@ class AddressProfile(models.Model):
     street = models.CharField(
         max_length=24, default=None, null=True, blank=True
     )
-    """Shipping address street."""
+    """Address street."""
 
     class Meta:
         verbose_name = _("address profile")
@@ -34,15 +34,14 @@ class AddressProfile(models.Model):
     def save(self, **kwargs) -> None:
         """Sets :py:attr:`street` if necessary before saving."""
         if self._needs_authorizenet_hydration():
-            if self.customer_profile.pk and self.pk:
-                response = self.get_authorizenet_profile()
-                if response is not None and all(
-                    [
-                        hasattr(response, "address"),
-                        hasattr(response.address, "address"),
-                    ]
-                ):
-                    self.street = str(response.address.address)
+            response = self.get_authorizenet_profile()
+            if response is not None and all(
+                [
+                    hasattr(response, "address"),
+                    hasattr(response.address, "address"),
+                ]
+            ):
+                self.street = str(response.address.address)
         return super().save(**kwargs)
 
     def get_absolute_url(self) -> str:
@@ -53,9 +52,9 @@ class AddressProfile(models.Model):
     def get_authorizenet_profile(self):
         """Returns the customer shipping address profile from Authorizenet."""
         if self.customer_profile.pk and self.pk:
-            return profiles.get_customer_shipping_address(
+            return anet.get_customer_shipping_address(
                 customer_profile_id=self.customer_profile.pk,
-                customer_address_profile_id=self.pk,
+                address_profile_id=self.pk,
             )
 
     def _needs_authorizenet_hydration(self) -> bool:

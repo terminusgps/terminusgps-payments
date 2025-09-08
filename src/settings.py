@@ -30,11 +30,6 @@ MERCHANT_AUTH_LOGIN_ID = os.getenv("MERCHANT_AUTH_LOGIN_ID")
 MERCHANT_AUTH_TRANSACTION_KEY = os.getenv("MERCHANT_AUTH_TRANSACTION_KEY")
 MERCHANT_AUTH_VALIDATION_MODE = "testMode"
 
-PAYMENTS_STYLES = {
-    "default": "p-4 rounded border-2 border-current",
-    "views": {"SubscriptionDetailView": "p-4 rounded border-2 border-current"},
-}
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

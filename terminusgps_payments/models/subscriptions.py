@@ -1,22 +1,20 @@
-from collections.abc import Sequence
+import collections.abc
 
 from authorizenet import apicontractsv1
 from django.db import models, transaction
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
-from terminusgps.authorizenet import subscriptions
+from terminusgps.authorizenet import api as anet
+from terminusgps.authorizenet import constants
 
 
 class SubscriptionScheduleInterval(models.Model):
-    class IntervalUnit(models.TextChoices):
-        DAYS = apicontractsv1.ARBSubscriptionUnitEnum.days, _("Days")
-        MONTHS = apicontractsv1.ARBSubscriptionUnitEnum.months, _("Months")
-
     name = models.CharField(max_length=64)
     """Subscription schedule interval name."""
     unit = models.CharField(
-        max_length=6, choices=IntervalUnit.choices, default=IntervalUnit.MONTHS
+        max_length=6,
+        choices=constants.AuthorizenetSubscriptionIntervalUnit.choices,
+        default=constants.AuthorizenetSubscriptionIntervalUnit.MONTHS,
     )
     """Subscription schedule interval unit."""
     length = models.IntegerField(default=1)
@@ -53,11 +51,8 @@ class SubscriptionSchedule(models.Model):
 
     def to_xml(self) -> apicontractsv1.paymentScheduleType:
         """Returns the schedule as an instance of :py:obj:`~authorizenet.apicontractsv1.paymentScheduleType`."""
-        interval: apicontractsv1.paymentScheduleTypeInterval = (
-            self.interval.to_xml()
-        )
         return apicontractsv1.paymentScheduleType(
-            interval=interval,
+            interval=self.interval.to_xml(),
             startDate=self.start_date,
             totalOccurrences=self.total_occurrences,
             trialOccurrences=self.trial_occurrences,
@@ -67,20 +62,11 @@ class SubscriptionSchedule(models.Model):
 class Subscription(models.Model):
     """An Authorizenet subscription."""
 
-    class SubscriptionStatus(models.TextChoices):
-        """An Authorizenet subscription status."""
-
-        ACTIVE = "active", _("Active")
-        CANCELED = "canceled", _("Canceled")
-        EXPIRED = "expired", _("Expired")
-        SUSPENDED = "suspended", _("Suspended")
-        TERMINATED = "terminated", _("Terminated")
-
     id = models.PositiveBigIntegerField(primary_key=True)
     """Authorizenet subscription id."""
     schedule = models.OneToOneField(
         "terminusgps_payments.SubscriptionSchedule",
-        on_delete=models.RESTRICT,
+        on_delete=models.CASCADE,
         related_name="subscription",
     )
     """Associated subscription schedule."""
@@ -113,8 +99,8 @@ class Subscription(models.Model):
     """Authorizenet subscription trial amount."""
     status = models.CharField(
         max_length=12,
-        default=SubscriptionStatus.ACTIVE,
-        choices=SubscriptionStatus.choices,
+        default=constants.AuthorizenetSubscriptionStatus.ACTIVE,
+        choices=constants.AuthorizenetSubscriptionStatus.choices,
     )
     """Authorizenet subscription status."""
 
@@ -128,8 +114,9 @@ class Subscription(models.Model):
         )
 
     def to_xml(
-        self, fields: Sequence[str] | None = None
+        self, fields: collections.abc.Collection[str] | None = None
     ) -> apicontractsv1.ARBSubscriptionType:
+        xml = apicontractsv1.ARBSubscriptionType()
         if fields is None:
             # Add all fields to return value
             fields = [
@@ -141,35 +128,40 @@ class Subscription(models.Model):
                 "address_profile",
             ]
 
-        subscription_obj = apicontractsv1.ARBSubscriptionType()
         if "name" in fields:
-            subscription_obj.name = self.name
+            xml.name = self.name
         if "schedule" in fields:
-            subscription_obj.paymentSchedule = self.schedule.to_xml()
+            xml.paymentSchedule = self.schedule.to_xml()
         if "amount" in fields:
-            subscription_obj.amount = self.amount
+            xml.amount = self.amount
         if "trial_amount" in fields:
-            subscription_obj.trialAmount = self.trial_amount
+            xml.trialAmount = self.trial_amount
         if "address_profile" in fields or "payment_profile" in fields:
             sub_profile = apicontractsv1.customerProfileIdType()
             sub_profile.customerProfileId = str(self.customer_profile.pk)
             sub_profile.customerAddressId = str(self.address_profile.pk)
             sub_profile.customerPaymentProfileId = str(self.payment_profile.pk)
-            subscription_obj.profile = sub_profile
-        return subscription_obj
+            xml.profile = sub_profile
+        return xml
 
     @transaction.atomic
     def refresh_status(self) -> str | None:
         """Retrieves the subscription's current status from Authorizenet, sets it and returns it."""
-        if new_status := self.get_authorizenet_status():
+        if new_status := self.get_anet_status():
             self.status = new_status
             return new_status
 
-    def get_authorizenet_status(self) -> str | None:
+    def get_anet_status(self) -> str | None:
         """Returns the subscription's status from Authorizenet."""
         if self.pk:
-            response = subscriptions.get_subscription_status(
-                subscription_id=self.pk
-            )
+            response = anet.get_subscription_status(subscription_id=self.pk)
             if response is not None and hasattr(response, "status"):
                 return str(response.status)
+
+    def get_anet_subscription(self, include_transactions: bool = False):
+        """Returns the subscription from Authorizenet."""
+        if self.pk:
+            return anet.get_subscription(
+                subscription_id=self.pk,
+                include_transactions=include_transactions,
+            )

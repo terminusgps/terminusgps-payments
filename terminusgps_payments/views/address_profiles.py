@@ -6,8 +6,7 @@ from django.urls import reverse_lazy
 from django.views.generic import DeleteView, DetailView, FormView, ListView
 from terminusgps.django.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import forms
-from terminusgps_payments.models import AddressProfile
+from terminusgps_payments import forms, models
 
 
 class AddressProfileCreateView(
@@ -31,18 +30,20 @@ class AddressProfileDetailView(
 ):
     content_type = "text/html"
     http_method_names = ["get"]
-    model = AddressProfile
+    model = models.AddressProfile
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_detail.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = AddressProfile.objects.none()
+    queryset = models.AddressProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/detail.html"
 
-    def get_queryset(self) -> QuerySet[AddressProfile, AddressProfile]:
-        return AddressProfile.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.AddressProfile, models.AddressProfile]:
+        return models.AddressProfile.objects.filter(
             customer_profile__user=self.request.user
         )
 
@@ -58,18 +59,20 @@ class AddressProfileDeleteView(
 ):
     content_type = "text/html"
     http_method_names = ["get", "post"]
-    model = AddressProfile
+    model = models.AddressProfile
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_delete.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = AddressProfile.objects.none()
+    queryset = models.AddressProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/delete.html"
 
-    def get_queryset(self) -> QuerySet[AddressProfile, AddressProfile]:
-        return AddressProfile.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.AddressProfile, models.AddressProfile]:
+        return models.AddressProfile.objects.filter(
             customer_profile__user=self.request.user
         )
 
@@ -80,18 +83,20 @@ class AddressProfileListView(
     allow_empty = True
     content_type = "text/html"
     http_method_names = ["get"]
-    model = AddressProfile
+    model = models.AddressProfile
     ordering = "pk"
     paginate_by = 4
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_list.html"
     )
     permission_denied_message = "Please login to view this content."
-    queryset = AddressProfile.objects.none()
+    queryset = models.AddressProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/list.html"
 
-    def get_queryset(self) -> QuerySet[AddressProfile, AddressProfile]:
-        return AddressProfile.objects.filter(
+    def get_queryset(
+        self,
+    ) -> QuerySet[models.AddressProfile, models.AddressProfile]:
+        return models.AddressProfile.objects.filter(
             customer_profile__user=self.request.user
         ).order_by(self.get_ordering())

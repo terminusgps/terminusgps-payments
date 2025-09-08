@@ -25,14 +25,15 @@ class SubscriptionAdmin(admin.ModelAdmin):
         "id",
         "payment_profile",
         "address_profile",
-        "schedule",
+        "schedule__interval",
     ]
+    readonly_fields = ["schedule"]
 
 
 @admin.register(models.SubscriptionSchedule)
 class SubscriptionScheduleAdmin(admin.ModelAdmin):
     list_display = [
-        "__str__",
+        "id",
         "interval",
         "start_date",
         "total_occurrences",
