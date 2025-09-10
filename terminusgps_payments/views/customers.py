@@ -3,7 +3,7 @@ import typing
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from terminusgps.authorizenet import api as anet
-from terminusgps.django.mixins import HtmxTemplateResponseMixin
+from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from terminusgps_payments import models
 

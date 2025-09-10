@@ -16,31 +16,3 @@ class AddressProfileAdmin(admin.ModelAdmin):
 @admin.register(models.PaymentProfile)
 class PaymentProfileAdmin(admin.ModelAdmin):
     list_display = ["customer_profile", "id"]
-
-
-@admin.register(models.Subscription)
-class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = [
-        "customer_profile__user",
-        "id",
-        "payment_profile",
-        "address_profile",
-        "schedule__interval",
-    ]
-    readonly_fields = ["schedule"]
-
-
-@admin.register(models.SubscriptionSchedule)
-class SubscriptionScheduleAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "interval",
-        "start_date",
-        "total_occurrences",
-        "trial_occurrences",
-    ]
-
-
-@admin.register(models.SubscriptionScheduleInterval)
-class SubscriptionScheduleIntervalAdmin(admin.ModelAdmin):
-    list_display = ["name", "unit", "length"]

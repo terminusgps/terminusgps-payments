@@ -1,7 +1,7 @@
 from authorizenet import apicontractsv1
 from django import forms
 from django.utils import timezone
-from terminusgps.django.validators import validate_e164_phone_number
+from terminusgps.validators import validate_e164_phone_number
 
 __all__ = ["PaymentProfileCreationForm", "AddressProfileCreationForm"]
 

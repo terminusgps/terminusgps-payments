@@ -15,32 +15,15 @@ class PaymentProfile(models.Model):
     )
     """Associated customer."""
 
-    cc_last_4 = models.CharField(
-        max_length=4, default=None, null=True, blank=True
-    )
-    """Credit card last 4 digits."""
-    cc_type = models.CharField(
-        max_length=16, default=None, null=True, blank=True
-    )
-    """Credit card type."""
-
     class Meta:
         verbose_name = _("payment profile")
         verbose_name_plural = _("payment profiles")
 
     def __str__(self) -> str:
-        """Returns '<cc_type> ending in <cc_last_4>' or 'Payment Profile #<pk>'."""
-        return (
-            f"{self.cc_type} ending in {self.cc_last_4}"
-            if self.cc_type and self.cc_last_4
-            else f"Payment Profile #{self.pk}"
-        )
+        """Returns 'Payment Profile #<pk>'."""
+        return f"Payment Profile #{self.pk}"
 
     def get_absolute_url(self) -> str:
         return reverse(
             "payments:detail payment profile", kwargs={"profile_pk": self.pk}
         )
-
-    def needs_authorizenet_hydration(self) -> bool:
-        """Whether the payment method needs to retrieve data from Authorizenet."""
-        return not all([self.cc_last_4, self.cc_type])
