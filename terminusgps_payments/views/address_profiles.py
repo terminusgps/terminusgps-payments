@@ -1,20 +1,23 @@
 import typing
 
+from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, FormView, ListView
-from terminusgps.authorizenet import api
-from terminusgps.authorizenet.controllers import (
+from terminusgps.authorizenet import api as anet_api
+from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
+    AuthorizenetService,
 )
-from terminusgps.authorizenet.services import AuthorizenetService
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import forms, models
+from terminusgps_payments import models
+from terminusgps_payments.forms import AddressProfileCreationForm
 
 
 class AddressProfileCreateView(
@@ -22,40 +25,38 @@ class AddressProfileCreateView(
 ):
     content_type = "text/html"
     extra_context = {"title": "Create Payment Method"}
-    form_class = forms.AddressProfileCreationForm
+    form_class = AddressProfileCreationForm
     http_method_names = ["get", "post"]
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_create.html"
     )
     permission_denied_message = "Please login to view this content."
     raise_exception = False
-    success_url = reverse_lazy("payments:account")
     template_name = "terminusgps_payments/address_profiles/create.html"
+    success_url = reverse_lazy("terminusgps_payments:list address profile")
 
     def setup(self, request: HttpRequest, *args, **kwargs) -> None:
         self.anet_service = AuthorizenetService()
         return super().setup(request, *args, **kwargs)
 
-    def form_valid(
-        self, form: forms.AddressProfileCreationForm
-    ) -> HttpResponse:
-        customer_profile = models.CustomerProfile.objects.get(
-            user=self.request.user
-        )
+    @transaction.atomic
+    def form_valid(self, form: AddressProfileCreationForm) -> HttpResponse:
+        cprofile = models.CustomerProfile.objects.get(user=self.request.user)
+        aprofile = models.AddressProfile(customer_profile=cprofile)
 
         try:
-            response = self.anet_service.request(
-                api.create_customer_shipping_address,
-                customer_profile_id=customer_profile.pk,
-                address=form.cleaned_data["address"],
+            anet_response = self.anet_service.call_api(
+                anet_api.create_customer_shipping_address(
+                    customer_profile_id=cprofile.pk,
+                    address=form.cleaned_data["address"],
+                    default=form.cleaned_data["default"],
+                )
             )
-            address_profile = models.AddressProfile(
-                customer_profile=customer_profile
-            )
-            address_profile.pk = int(response.customerAddressId)
-            address_profile.street = str(response.address.address)
-            address_profile.save()
-            return super().form_valid(form=form)
+            aprofile.pk = int(anet_response.customerAddressId)
+            aprofile.save()
+            response = super().form_valid(form=form)
+            response.headers["HX-Reswap"] = "outerHTML"
+            return response
         except AuthorizenetControllerExecutionError as e:
             match e.code:
                 case _:
@@ -85,17 +86,25 @@ class AddressProfileDetailView(
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/detail.html"
 
-    def get_queryset(
-        self,
-    ) -> QuerySet[models.AddressProfile, models.AddressProfile]:
-        return models.AddressProfile.objects.filter(
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        self.anet_service = AuthorizenetService()
+        return super().setup(request, *args, **kwargs)
+
+    def get_queryset(self) -> QuerySet:
+        return self.model.objects.filter(
             customer_profile__user=self.request.user
-        )
+        ).select_related("customer_profile")
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        if address_profile := kwargs.get("object"):
-            context["profile"] = address_profile.get_authorizenet_profile()
+        if aprofile := kwargs.get("object"):
+            api_response = self.anet_service.call_api(
+                anet_api.get_customer_shipping_address(
+                    customer_profile_id=aprofile.customer_profile.pk,
+                    address_profile_id=aprofile.pk,
+                )
+            )
+            context["anet_profile"] = api_response.address
         return context
 
 
@@ -114,12 +123,51 @@ class AddressProfileDeleteView(
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/delete.html"
 
-    def get_queryset(
-        self,
-    ) -> QuerySet[models.AddressProfile, models.AddressProfile]:
-        return models.AddressProfile.objects.filter(
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        self.anet_service = AuthorizenetService()
+        return super().setup(request, *args, **kwargs)
+
+    def get_queryset(self) -> QuerySet:
+        return self.model.objects.filter(
             customer_profile__user=self.request.user
-        )
+        ).select_related("customer_profile")
+
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        aprofile = self.get_object()
+
+        try:
+            self.anet_service.call_api(
+                anet_api.delete_customer_shipping_address(
+                    customer_profile_id=aprofile.customer_profile.pk,
+                    address_profile_id=aprofile.pk,
+                )
+            )
+            self.object.delete()
+            response = HttpResponse(status=200)
+            response.headers["HX-Reswap"] = "delete"
+            return response
+        except AuthorizenetControllerExecutionError as e:
+            match e.code:
+                case "E00107":
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _(
+                                "Whoops! This shipping address is currently associated with an active or suspended subscription. Nothing was deleted."
+                            ),
+                            code="invalid",
+                        ),
+                    )
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _("%(code)s: '%(message)s'"),
+                            code="invalid",
+                            params={"code": e.code, "message": e.message},
+                        ),
+                    )
+            return self.form_invalid(form=form)
 
 
 class AddressProfileListView(
@@ -139,9 +187,9 @@ class AddressProfileListView(
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/list.html"
 
-    def get_queryset(
-        self,
-    ) -> QuerySet[models.AddressProfile, models.AddressProfile]:
-        return models.AddressProfile.objects.filter(
-            customer_profile__user=self.request.user
-        ).order_by(self.get_ordering())
+    def get_queryset(self) -> QuerySet:
+        return (
+            self.model.objects.filter(customer_profile__user=self.request.user)
+            .select_related("customer_profile")
+            .order_by(self.get_ordering())
+        )

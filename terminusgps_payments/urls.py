@@ -2,9 +2,8 @@ from django.urls import path
 
 from . import views
 
-app_name = "payments"
+app_name = "terminusgps_payments"
 urlpatterns = [
-    path("account/", views.CustomerAccountView.as_view(), name="account"),
     path(
         "payments/create/",
         views.PaymentProfileCreateView.as_view(),

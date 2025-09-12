@@ -1,1 +1,10 @@
-<p>{{ profile.address.address }}</p>
+<div class="flex items-center justify-between gap-2">
+    <section id="info">
+        <p>{{ anet_profile.firstName }} {{ anet_profile.lastName }}</p>
+        <p>{{ anet_profile.address }}</p>
+        <p>{{ anet_profile.city }}, {{ anet_profile.state }}, {{ anet_profile.country }} {{ anet_profile.zip }}</p>
+    </section>
+    <section id="buttons">
+        <button class="cursor-pointer rounded border border-current bg-gray-50 p-2 text-red-600 transition-colors duration-300 ease-in-out hover:bg-red-50" hx-get="{% url 'terminusgps_payments:delete address profile' addressprofile.pk %}">Delete</button>
+    </section>
+</div>

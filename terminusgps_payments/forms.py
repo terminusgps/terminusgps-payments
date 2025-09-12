@@ -14,7 +14,7 @@ def get_field_attrs(fields: tuple) -> list[dict[str, str]]:
         if hasattr(field, "min_length") and field.min_length:
             attrs["minlength"] = field.min_length
         if hasattr(field, "max_length") and field.max_length:
-            attrs["maxlength"] = field.min_length
+            attrs["maxlength"] = field.max_length
         field_attrs.append(attrs)
     return field_attrs
 
@@ -196,7 +196,7 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
 class PaymentProfileCreationForm(forms.Form):
     address = AuthorizenetCustomerAddressField()
     credit_card = AuthorizenetCreditCardField()
-    create_address_profile = forms.BooleanField(initial=True)
+    create_address_profile = forms.BooleanField(initial=True, required=False)
     default = forms.BooleanField(initial=True)
 
 

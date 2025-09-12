@@ -25,5 +25,6 @@ class AddressProfile(models.Model):
 
     def get_absolute_url(self) -> str:
         return reverse(
-            "payments:detail address profile", kwargs={"profile_pk": self.pk}
+            "terminusgps_payments:detail address profile",
+            kwargs={"profile_pk": self.pk},
         )
