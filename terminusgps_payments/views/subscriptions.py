@@ -53,26 +53,22 @@ class SubscriptionUpdateView(
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
             subscription = self.get_object()
-            update_address = "address_profile" in form.changed_data
-            update_payment = "payment_profile" in form.changed_data
+            address_updated = "address_profile" in form.changed_data
+            payment_updated = "payment_profile" in form.changed_data
 
             anet_subscription = apicontractsv1.ARBSubscriptionType()
             anet_subscription.profile = apicontractsv1.customerProfileIdType()
             anet_subscription.profile.customerProfileId = str(
                 subscription.customer_profile.pk
             )
-            if update_payment:
-                payment_profile = form.cleaned_data["payment_profile"]
-                anet_subscription.profile.customerPaymentProfileId = str(
-                    payment_profile.pk
-                )
-            if update_address:
-                address_profile = form.cleaned_data["address_profile"]
-                anet_subscription.profile.customerAddressId = str(
-                    address_profile.pk
-                )
 
-            if update_payment or update_address:
+            if address_updated:
+                pk = form.cleaned_data["address_profile"].pk
+                anet_subscription.profile.customerAddressId = str(pk)
+            if payment_updated:
+                pk = form.cleaned_data["payment_profile"].pk
+                anet_subscription.profile.customerPaymentProfileId = str(pk)
+            if address_updated or payment_updated:
                 service = SubscriptionService()
                 service.update(subscription, anet_subscription)
             return super().form_valid(form=form)
