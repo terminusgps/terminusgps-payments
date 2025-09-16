@@ -1,9 +1,17 @@
-<div class="flex items-center justify-between gap-2">
-    <section id="info">
-        <p>{{ anet_profile.billTo.firstName }} {{ anet_profile.billTo.lastName }}</p>
-        <p>{{ anet_profile.payment.creditCard.cardType }}: {{ anet_profile.payment.creditCard.cardNumber }}</p>
-    </section>
-    <section id="buttons">
-        <button class="cursor-pointer rounded border border-current bg-gray-50 p-2 text-red-600 transition-colors duration-300 ease-in-out hover:bg-red-50" hx-get="{% url 'terminusgps_payments:delete payment profile' paymentprofile.pk %}">Delete</button>
-    </section>
-</div>
+{% load static %}
+{% with profile.paymentProfile.billTo as address %}
+{% with profile.paymentProfile.payment.creditCard as cc %}
+<section id="credit_card" class="flex items-center gap-2">
+    <div id="icon">{{ icon_svg|safe }}</div>
+    <div id="last-4" class="text-lg tracking-wider">{{ cc.cardNumber|cut:'XXXX' }}</div>
+</section>
+<section id="address">
+    <div id="full-name" class="text-gray-800">{{ address.firstName }} {{ address.lastName }}</div>
+    <div id="street" class="text-gray-800">{{ address.address }}</div>
+    <div id="city-state-country-zip" class="text-gray-700">{{ address.city }}, {{ address.state }}, {{ address.country }} {{ address.zip }}</div>
+</section>
+<form hx-get="{% url 'terminusgps_payments:delete payment profile' paymentprofile.pk %}" hx-swap="outerHTML" hx-target="this" hx-trigger="load">
+    <button class="w-full cursor-progress rounded border border-current bg-gray-50 p-2 text-red-600 transition-colors duration-300 ease-in-out hover:bg-red-50" disabled>Delete</button>
+</form>
+{% endwith %}
+{% endwith %}

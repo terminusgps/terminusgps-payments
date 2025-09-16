@@ -1,23 +1,33 @@
-from authorizenet import apicontractsv1
+import os
+import typing
+
 from django import forms
-from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.staticfiles import finders
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, FormView, ListView
-from terminusgps.authorizenet import api as anet_api
+from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
-    AuthorizenetService,
 )
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import models
 from terminusgps_payments.forms import PaymentProfileCreationForm
+from terminusgps_payments.models import (
+    AddressProfile,
+    CustomerProfile,
+    PaymentProfile,
+)
+from terminusgps_payments.services import (
+    AddressProfileService,
+    PaymentProfileService,
+)
 
 
 class PaymentProfileCreateView(
@@ -31,46 +41,59 @@ class PaymentProfileCreateView(
     )
     permission_denied_message = "Please login to view this content."
     raise_exception = False
-    template_name = "terminusgps_payments/payment_profiles/create.html"
     success_url = reverse_lazy("terminusgps_payments:list payment profile")
-
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        self.anet_service = AuthorizenetService()
-        return super().setup(request, *args, **kwargs)
+    template_name = "terminusgps_payments/payment_profiles/create.html"
 
     @transaction.atomic
     def form_valid(self, form: PaymentProfileCreationForm) -> HttpResponse:
-        cprofile = models.CustomerProfile.objects.get(user=self.request.user)
-        pprofile = models.PaymentProfile(customer_profile=cprofile)
-        aprofile = models.AddressProfile(customer_profile=cprofile)
+        customer_profile = CustomerProfile.objects.get(user=self.request.user)
+        payment_profile = PaymentProfile(customer_profile=customer_profile)
+        address_profile = AddressProfile(customer_profile=customer_profile)
+
+        address = form.cleaned_data["address"]
+        credit_card = form.cleaned_data["credit_card"]
+        default = form.cleaned_data["default"]
+        create_address = form.cleaned_data["create_address_profile"]
 
         try:
-            anet_response = self.anet_service.call_api(
-                anet_api.create_customer_payment_profile(
-                    customer_profile_id=cprofile.pk,
-                    payment=apicontractsv1.paymentType(
-                        creditCard=form.cleaned_data["credit_card"]
-                    ),
-                    address=form.cleaned_data["address"],
-                    default=form.cleaned_data["default"],
-                    validation=settings.MERCHANT_AUTH_VALIDATION_MODE,
-                )
+            service = PaymentProfileService()
+            payment_profile = service.create(
+                payment_profile,
+                address=address,
+                credit_card=credit_card,
+                default=default,
             )
-            pprofile.pk = int(anet_response.customerPaymentProfileId)
-            pprofile.save()
-            if form.cleaned_data["create_address_profile"]:
-                anet_response = self.anet_service.call_api(
-                    anet_api.create_customer_shipping_address(
-                        customer_profile_id=cprofile.pk,
-                        address=form.cleaned_data["address"],
-                        default=form.cleaned_data["default"],
-                    )
+            payment_profile.save()
+            if create_address:
+                service = AddressProfileService()
+                address_profile = service.create(
+                    address_profile, address=address, default=default
                 )
-                aprofile.pk = int(anet_response.customerAddressId)
-                aprofile.save()
-            return super().form_valid(form=form)
+                address_profile.save()
+            return HttpResponse(
+                status=200,
+                headers={
+                    "HX-Reselect": "#payment-profiles-list",
+                    "HX-Refresh": "true",
+                },
+            )
         except AuthorizenetControllerExecutionError as e:
             match e.code:
+                case "E00039":
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _(
+                                "Whoops! A payment method with a card ending in '%(last_4)s' already exists on your account."
+                            ),
+                            code="invalid",
+                            params={
+                                "last_4": str(
+                                    form.cleaned_data["credit_card"].cardNumber
+                                )[-4:]
+                            },
+                        ),
+                    )
                 case _:
                     form.add_error(
                         None,
@@ -88,19 +111,36 @@ class PaymentProfileDetailView(
 ):
     content_type = "text/html"
     http_method_names = ["get"]
-    model = models.PaymentProfile
+    model = PaymentProfile
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_detail.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = models.PaymentProfile.objects.none()
+    queryset = PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        self.anet_service = AuthorizenetService()
-        return super().setup(request, *args, **kwargs)
+    def get_credit_card_svg_icon(
+        self, payment_profile_response: ObjectifiedElement
+    ) -> str | None:
+        card_type = str(
+            payment_profile_response.paymentProfile.payment.creditCard.cardType
+        ).lower()
+
+        cache_key = f"get_credit_card_svg_icon:{card_type}"
+        if cached_icon := cache.get(cache_key):
+            return cached_icon
+
+        path = finders.find(
+            f"terminusgps_payments/icons/{card_type}.svg", find_all=False
+        )
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                icon = f.read()
+
+        cache.set(cache_key, icon, timeout=60 * 15)
+        return icon
 
     def get_queryset(self) -> QuerySet:
         return self.model.objects.filter(
@@ -109,16 +149,12 @@ class PaymentProfileDetailView(
 
     def get_context_data(self, **kwargs) -> dict:
         context: dict = super().get_context_data(**kwargs)
-        if pprofile := kwargs.get("object"):
-            anet_response = self.anet_service.call_api(
-                anet_api.get_customer_payment_profile(
-                    customer_profile_id=pprofile.customer_profile.pk,
-                    payment_profile_id=pprofile.pk,
-                    # TODO: Determine include_issuer_info via request parameters
-                    include_issuer_info=False,
-                )
-            )
-            context["anet_profile"] = anet_response.paymentProfile
+        if payment_profile := kwargs.get("object"):
+            service = PaymentProfileService()
+            profile = service.get(payment_profile)
+
+            context["profile"] = profile
+            context["icon_svg"] = self.get_credit_card_svg_icon(profile)
         return context
 
 
@@ -127,39 +163,42 @@ class PaymentProfileDeleteView(
 ):
     content_type = "text/html"
     http_method_names = ["get", "post"]
-    model = models.PaymentProfile
+    model = PaymentProfile
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_delete.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = models.PaymentProfile.objects.none()
+    queryset = PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/delete.html"
-
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        self.anet_service = AuthorizenetService()
-        return super().setup(request, *args, **kwargs)
 
     def get_queryset(self) -> QuerySet:
         return self.model.objects.filter(
             customer_profile__user=self.request.user
         ).select_related("customer_profile")
 
-    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
-        pprofile = self.get_object()
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        if payment_profile := kwargs.get("object"):
+            service = PaymentProfileService()
+            context["profile"] = service.get(payment_profile)
+        return context
 
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
-            self.anet_service.call_api(
-                anet_api.delete_customer_payment_profile(
-                    customer_profile_id=pprofile.customer_profile.pk,
-                    payment_profile_id=pprofile.pk,
-                )
+            service = PaymentProfileService()
+            payment_profile = self.get_object()
+
+            service.delete(payment_profile)
+            payment_profile.delete()
+            return HttpResponse(
+                status=200,
+                headers={
+                    "HX-Reselect": "#payment-profiles-list",
+                    "HX-Refresh": "true",
+                },
             )
-            self.object.delete()
-            response = HttpResponse(status=200)
-            response.headers["HX-Reswap"] = "delete"
-            return response
         except AuthorizenetControllerExecutionError as e:
             match e.code:
                 case "E00105":
@@ -190,14 +229,14 @@ class PaymentProfileListView(
     allow_empty = True
     content_type = "text/html"
     http_method_names = ["get"]
-    model = models.PaymentProfile
+    model = PaymentProfile
     ordering = "pk"
     paginate_by = 4
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_list.html"
     )
     permission_denied_message = "Please login to view this content."
-    queryset = models.PaymentProfile.objects.none()
+    queryset = PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/list.html"
 

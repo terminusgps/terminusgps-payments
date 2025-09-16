@@ -19,16 +19,23 @@ from authorizenet.constants import constants
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-SECRET_KEY = (
-    "django-insecure-k_hy$%724=-h11l@^pur0$#crj0u!#w&68=i$)k9!jxb)yia0k"
-)
-
-DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+DEBUG = True
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+LANGUAGE_CODE = "en-us"
 MERCHANT_AUTH_ENVIRONMENT = constants.SANDBOX
 MERCHANT_AUTH_LOGIN_ID = os.getenv("MERCHANT_AUTH_LOGIN_ID")
 MERCHANT_AUTH_TRANSACTION_KEY = os.getenv("MERCHANT_AUTH_TRANSACTION_KEY")
 MERCHANT_AUTH_VALIDATION_MODE = "testMode"
+ROOT_URLCONF = "src.urls"
+SECRET_KEY = (
+    "django-insecure-k_hy$%724=-h11l@^pur0$#crj0u!#w&68=i$)k9!jxb)yia0k"
+)
+STATIC_URL = "static/"
+TIME_ZONE = "UTC"
+USE_I18N = True
+USE_TZ = True
+WSGI_APPLICATION = "src.wsgi.application"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -37,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.forms",
     "terminusgps_payments.apps.TerminusgpsPaymentsConfig",
 ]
 
@@ -50,7 +58,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "src.urls"
 
 TEMPLATES = [
     {
@@ -67,12 +74,6 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = "src.wsgi.application"
-
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -80,9 +81,9 @@ DATABASES = {
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -96,26 +97,3 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"
     },
 ]
-
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = "static/"
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

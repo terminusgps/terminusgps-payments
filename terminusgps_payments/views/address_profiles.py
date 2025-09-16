@@ -5,19 +5,17 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse
-from django.urls import reverse_lazy
+from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, FormView, ListView
-from terminusgps.authorizenet import api as anet_api
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
-    AuthorizenetService,
 )
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import models
 from terminusgps_payments.forms import AddressProfileCreationForm
+from terminusgps_payments.models import AddressProfile, CustomerProfile
+from terminusgps_payments.services import AddressProfileService
 
 
 class AddressProfileCreateView(
@@ -33,30 +31,28 @@ class AddressProfileCreateView(
     permission_denied_message = "Please login to view this content."
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/create.html"
-    success_url = reverse_lazy("terminusgps_payments:list address profile")
-
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        self.anet_service = AuthorizenetService()
-        return super().setup(request, *args, **kwargs)
 
     @transaction.atomic
     def form_valid(self, form: AddressProfileCreationForm) -> HttpResponse:
-        cprofile = models.CustomerProfile.objects.get(user=self.request.user)
-        aprofile = models.AddressProfile(customer_profile=cprofile)
+        customer_profile = CustomerProfile.objects.get(user=self.request.user)
+        address_profile = AddressProfile(customer_profile=customer_profile)
+
+        address = form.cleaned_data["address"]
+        default = form.cleaned_data["default"]
 
         try:
-            anet_response = self.anet_service.call_api(
-                anet_api.create_customer_shipping_address(
-                    customer_profile_id=cprofile.pk,
-                    address=form.cleaned_data["address"],
-                    default=form.cleaned_data["default"],
-                )
+            service = AddressProfileService()
+            address_profile = service.create(
+                address_profile, address=address, default=default
             )
-            aprofile.pk = int(anet_response.customerAddressId)
-            aprofile.save()
-            response = super().form_valid(form=form)
-            response.headers["HX-Reswap"] = "outerHTML"
-            return response
+            address_profile.save()
+            return HttpResponse(
+                status=200,
+                headers={
+                    "HX-Reselect": "#address-profiles-list",
+                    "HX-Refresh": "true",
+                },
+            )
         except AuthorizenetControllerExecutionError as e:
             match e.code:
                 case _:
@@ -76,19 +72,15 @@ class AddressProfileDetailView(
 ):
     content_type = "text/html"
     http_method_names = ["get"]
-    model = models.AddressProfile
+    model = AddressProfile
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_detail.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = models.AddressProfile.objects.none()
+    queryset = AddressProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/detail.html"
-
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        self.anet_service = AuthorizenetService()
-        return super().setup(request, *args, **kwargs)
 
     def get_queryset(self) -> QuerySet:
         return self.model.objects.filter(
@@ -97,14 +89,9 @@ class AddressProfileDetailView(
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        if aprofile := kwargs.get("object"):
-            api_response = self.anet_service.call_api(
-                anet_api.get_customer_shipping_address(
-                    customer_profile_id=aprofile.customer_profile.pk,
-                    address_profile_id=aprofile.pk,
-                )
-            )
-            context["anet_profile"] = api_response.address
+        if address_profile := kwargs.get("object"):
+            service = AddressProfileService()
+            context["profile"] = service.get(address_profile)
         return context
 
 
@@ -113,39 +100,42 @@ class AddressProfileDeleteView(
 ):
     content_type = "text/html"
     http_method_names = ["get", "post"]
-    model = models.AddressProfile
+    model = AddressProfile
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_delete.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = models.AddressProfile.objects.none()
+    queryset = AddressProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/delete.html"
-
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        self.anet_service = AuthorizenetService()
-        return super().setup(request, *args, **kwargs)
 
     def get_queryset(self) -> QuerySet:
         return self.model.objects.filter(
             customer_profile__user=self.request.user
         ).select_related("customer_profile")
 
-    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
-        aprofile = self.get_object()
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        if address_profile := kwargs.get("object"):
+            service = AddressProfileService()
+            context["profile"] = service.get(address_profile)
+        return context
 
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
-            self.anet_service.call_api(
-                anet_api.delete_customer_shipping_address(
-                    customer_profile_id=aprofile.customer_profile.pk,
-                    address_profile_id=aprofile.pk,
-                )
+            service = AddressProfileService()
+            address_profile = self.get_object()
+
+            address_profile = service.delete(address_profile)
+            address_profile.delete()
+            return HttpResponse(
+                status=200,
+                headers={
+                    "HX-Reselect": "#address-profiles-list",
+                    "HX-Refresh": "true",
+                },
             )
-            self.object.delete()
-            response = HttpResponse(status=200)
-            response.headers["HX-Reswap"] = "delete"
-            return response
         except AuthorizenetControllerExecutionError as e:
             match e.code:
                 case "E00107":
@@ -176,14 +166,14 @@ class AddressProfileListView(
     allow_empty = True
     content_type = "text/html"
     http_method_names = ["get"]
-    model = models.AddressProfile
+    model = AddressProfile
     ordering = "pk"
     paginate_by = 4
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_list.html"
     )
     permission_denied_message = "Please login to view this content."
-    queryset = models.AddressProfile.objects.none()
+    queryset = AddressProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/address_profiles/list.html"
 

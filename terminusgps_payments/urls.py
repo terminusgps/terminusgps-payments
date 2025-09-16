@@ -1,9 +1,13 @@
 from django.urls import path
 
+# from django.views.decorators.cache import cache_page
 from . import views
+
+# cached = lambda view_func: cache_page(timeout=60 * 15)(view_func)
 
 app_name = "terminusgps_payments"
 urlpatterns = [
+    path("", views.AccountView.as_view(), name="account"),
     path(
         "payments/create/",
         views.PaymentProfileCreateView.as_view(),

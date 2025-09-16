@@ -1,61 +1,11 @@
 from authorizenet import apicontractsv1
 from django import forms
-from django.utils import timezone
-from terminusgps.validators import validate_e164_phone_number
 
 __all__ = ["PaymentProfileCreationForm", "AddressProfileCreationForm"]
 
 
-def get_field_attrs(fields: tuple) -> list[dict[str, str]]:
-    # TODO: Get more attributes from fields
-    field_attrs = []
-    for field in fields:
-        attrs = {}
-        if hasattr(field, "min_length") and field.min_length:
-            attrs["minlength"] = field.min_length
-        if hasattr(field, "max_length") and field.max_length:
-            attrs["maxlength"] = field.max_length
-        field_attrs.append(attrs)
-    return field_attrs
-
-
 class AuthorizenetCustomerAddressWidget(forms.widgets.MultiWidget):
     template_name = "terminusgps_payments/widgets/address.html"
-
-    def __init__(self, attrs=None, field_attrs=None) -> None:
-        if attrs is None:
-            attrs = {}
-        if field_attrs is None:
-            field_attrs = [{} for _ in range(8)]
-        widgets = {
-            "first_name": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[0] | {"placeholder": "First Name"}
-            ),
-            "last_name": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[1] | {"placeholder": "Last Name"}
-            ),
-            "phone_number": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[2] | {"placeholder": "+17139045262"}
-            ),
-            "street": forms.widgets.TextInput(
-                attrs=attrs
-                | field_attrs[3]
-                | {"placeholder": "17610 South Dr"}
-            ),
-            "city": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[4] | {"placeholder": "Houston"}
-            ),
-            "state": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[5] | {"placeholder": "Texas"}
-            ),
-            "zip": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[6] | {"placeholder": "77433"}
-            ),
-            "country": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[7] | {"placeholder": "USA"}
-            ),
-        }
-        super().__init__(widgets=widgets, attrs=attrs)
 
     def decompress(self, value) -> list[str | None]:
         if value:
@@ -76,22 +26,66 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
     def __init__(self, **kwargs) -> None:
         error_messages = {}
         fields = (
-            forms.CharField(label="First Name", min_length=4, max_length=16),
-            forms.CharField(label="Last Name", min_length=4, max_length=16),
-            forms.CharField(
-                label="Phone #", validators=[validate_e164_phone_number]
-            ),
-            forms.CharField(label="Street", min_length=4, max_length=64),
-            forms.CharField(label="City", min_length=4, max_length=64),
-            forms.CharField(label="State", min_length=4, max_length=64),
-            forms.CharField(label="Zip #", min_length=5, max_length=10),
-            forms.CharField(label="Country", min_length=2, max_length=16),
+            forms.CharField(label="First Name"),
+            forms.CharField(label="Last Name"),
+            forms.CharField(label="Phone #"),
+            forms.CharField(label="Street"),
+            forms.CharField(label="City"),
+            forms.CharField(label="State"),
+            forms.CharField(label="Zip #"),
+            forms.CharField(label="Country"),
         )
         widget = AuthorizenetCustomerAddressWidget(
-            attrs={
-                "class": "p-2 rounded border border-current w-full text-gray-800 bg-gray-50 dark:text-gray-100 dark:bg-gray-400 group-has-[.errorlist]:text-red-600 group-has-[.errorlist]:bg-red-100"
-            },
-            field_attrs=get_field_attrs(fields),
+            widgets={
+                "first_name": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "First",
+                    }
+                ),
+                "last_name": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "Last",
+                    }
+                ),
+                "phone_number": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "+17139045262",
+                    }
+                ),
+                "street": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "17610 South Dr",
+                    }
+                ),
+                "city": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "Cypress",
+                    }
+                ),
+                "state": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "Texas",
+                    }
+                ),
+                "zip": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "77433",
+                    }
+                ),
+                "country": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white w-full",
+                        "placeholder": "USA",
+                    }
+                ),
+            }
         )
         super().__init__(
             error_messages=error_messages,
@@ -117,34 +111,6 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
 class AuthorizenetCreditCardWidget(forms.widgets.MultiWidget):
     template_name = "terminusgps_payments/widgets/credit_card.html"
 
-    def __init__(self, attrs=None, field_attrs=None) -> None:
-        if attrs is None:
-            attrs = {}
-        if field_attrs is None:
-            field_attrs = [{} for _ in range(3)]
-        now = timezone.now()
-        widgets = {
-            "number": forms.widgets.TextInput(
-                attrs=attrs
-                | field_attrs[0]
-                | {"placeholder": "4111111111111111"}
-            ),
-            "expiry_month": forms.widgets.TextInput(
-                attrs=attrs
-                | field_attrs[1]
-                | {"placeholder": now.strftime("%m")}
-            ),
-            "expiry_year": forms.widgets.TextInput(
-                attrs=attrs
-                | field_attrs[2]
-                | {"placeholder": now.strftime("%y")}
-            ),
-            "ccv": forms.widgets.TextInput(
-                attrs=attrs | field_attrs[3] | {"placeholder": "444"}
-            ),
-        }
-        super().__init__(widgets=widgets, attrs=attrs)
-
     def decompress(self, value) -> list[str | None]:
         if value:
             year, month = str(value.expirationDate).split("-")
@@ -160,23 +126,41 @@ class AuthorizenetCreditCardWidget(forms.widgets.MultiWidget):
 class AuthorizenetCreditCardField(forms.MultiValueField):
     def __init__(self, **kwargs) -> None:
         error_messages = {}
-        current_year = int(str(timezone.now().year)[-2:])
         fields = (
-            forms.CharField(label="Card #", min_length=16),
-            forms.IntegerField(
-                label="Expiry Month", min_value=1, max_value=12
-            ),
-            forms.IntegerField(
-                label="Expiry Year", min_value=current_year, max_value=99
-            ),
-            forms.CharField(label="CCV #", min_length=3, max_length=4),
+            forms.CharField(label="Card #"),
+            forms.IntegerField(label="Expiry Month"),
+            forms.IntegerField(label="Expiry Year"),
+            forms.CharField(label="CCV #"),
         )
         widget = AuthorizenetCreditCardWidget(
-            attrs={
-                "class": "p-2 rounded border border-current w-full text-gray-800 bg-gray-50 dark:text-gray-100 dark:bg-gray-400 group-has-[.errorlist]:text-red-600 group-has-[.errorlist]:bg-red-100"
-            },
-            field_attrs=get_field_attrs(fields),
+            widgets={
+                "number": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white col-span-2",
+                        "placeholder": "4111111111111111",
+                    }
+                ),
+                "expiry_month": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white",
+                        "placeholder": "MM",
+                    }
+                ),
+                "expiry_year": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white",
+                        "placeholder": "YY",
+                    }
+                ),
+                "ccv": forms.widgets.TextInput(
+                    attrs={
+                        "class": "p-2 rounded border bg-white col-span-2",
+                        "placeholder": "444",
+                    }
+                ),
+            }
         )
+
         super().__init__(
             error_messages=error_messages,
             fields=fields,
@@ -196,10 +180,26 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
 class PaymentProfileCreationForm(forms.Form):
     address = AuthorizenetCustomerAddressField()
     credit_card = AuthorizenetCreditCardField()
-    create_address_profile = forms.BooleanField(initial=True, required=False)
-    default = forms.BooleanField(initial=True)
+    create_address_profile = forms.BooleanField(
+        initial=False,
+        required=False,
+        widget=forms.widgets.CheckboxInput(
+            attrs={"class": "accent-terminus-red-700 select-none"}
+        ),
+    )
+    default = forms.BooleanField(
+        initial=True,
+        widget=forms.widgets.CheckboxInput(
+            attrs={"class": "accent-terminus-red-700 select-none"}
+        ),
+    )
 
 
 class AddressProfileCreationForm(forms.Form):
     address = AuthorizenetCustomerAddressField()
-    default = forms.BooleanField(initial=True)
+    default = forms.BooleanField(
+        initial=True,
+        widget=forms.widgets.CheckboxInput(
+            attrs={"class": "accent-terminus-red-700 select-none"}
+        ),
+    )
