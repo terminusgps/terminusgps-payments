@@ -1,5 +1,5 @@
 {% for paymentprofile in paymentprofile_list %}
-<section id="{{ paymentprofile.pk }}" class="flex flex-col gap-4 rounded border bg-gray-100 p-4" hx-get="{{ paymentprofile.get_absolute_url }}" hx-target="this" hx-trigger="load"></section>
+<section id="{{ paymentprofile.pk }}" class="flex flex-col gap-4 rounded border bg-gray-100 p-4 drop-shadow" hx-get="{{ paymentprofile.get_absolute_url }}" hx-target="this" hx-trigger="load"></section>
 {% empty %}
 <p>You don't have any payment profiles.</p>
 {% endfor %}

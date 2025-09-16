@@ -1,5 +1,6 @@
 from authorizenet import apicontractsv1
 from django import forms
+from django.utils import timezone
 
 __all__ = ["PaymentProfileCreationForm", "AddressProfileCreationForm"]
 
@@ -41,48 +42,80 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "First",
+                        "minlength": "1",
+                        "maxlength": "24",
+                        "inputmode": "text",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "last_name": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "Last",
+                        "minlength": "1",
+                        "maxlength": "24",
+                        "inputmode": "text",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "phone_number": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "+17139045262",
+                        "minlength": "12",
+                        "maxlength": "16",
+                        "inputmode": "tel",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "street": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "17610 South Dr",
+                        "minlength": "4",
+                        "maxlength": "64",
+                        "inputmode": "text",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "city": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "Cypress",
+                        "minlength": "4",
+                        "maxlength": "64",
+                        "inputmode": "text",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "state": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "Texas",
+                        "minlength": "4",
+                        "maxlength": "64",
+                        "inputmode": "text",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "zip": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "77433",
+                        "minlength": "5",
+                        "maxlength": "9",
+                        "inputmode": "numeric",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "country": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white w-full",
                         "placeholder": "USA",
+                        "minlength": "3",
+                        "maxlength": "64",
+                        "inputmode": "text",
+                        "enterkeyhint": "done",
                     }
                 ),
             }
@@ -138,18 +171,34 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
                     attrs={
                         "class": "p-2 rounded border bg-white col-span-2",
                         "placeholder": "4111111111111111",
+                        "minlength": "16",
+                        "maxlength": "19",
+                        "inputmode": "numeric",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "expiry_month": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white",
                         "placeholder": "MM",
+                        "min": 1,
+                        "max": 12,
+                        "minlength": "2",
+                        "maxlength": "2",
+                        "inputmode": "numeric",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "expiry_year": forms.widgets.TextInput(
                     attrs={
                         "class": "p-2 rounded border bg-white",
                         "placeholder": "YY",
+                        "min": int(str(timezone.now().year)[-2:]),
+                        "max": 99,
+                        "minlength": "2",
+                        "maxlength": "2",
+                        "inputmode": "numeric",
+                        "enterkeyhint": "next",
                     }
                 ),
                 "ccv": forms.widgets.TextInput(
@@ -180,13 +229,6 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
 class PaymentProfileCreationForm(forms.Form):
     address = AuthorizenetCustomerAddressField()
     credit_card = AuthorizenetCreditCardField()
-    create_address_profile = forms.BooleanField(
-        initial=False,
-        required=False,
-        widget=forms.widgets.CheckboxInput(
-            attrs={"class": "accent-terminus-red-700 select-none"}
-        ),
-    )
     default = forms.BooleanField(
         initial=True,
         widget=forms.widgets.CheckboxInput(

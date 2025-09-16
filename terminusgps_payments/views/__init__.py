@@ -11,3 +11,9 @@ from .payment_profiles import (
     PaymentProfileDetailView,
     PaymentProfileListView,
 )
+from .subscriptions import (
+    SubscriptionDeleteView,
+    SubscriptionDetailView,
+    SubscriptionListView,
+    SubscriptionUpdateView,
+)

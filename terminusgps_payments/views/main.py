@@ -20,7 +20,6 @@ class AccountView(LoginRequiredMixin, HtmxTemplateResponseMixin, TemplateView):
             customer_profile = CustomerProfile.objects.get(user=request.user)
         except CustomerProfile.DoesNotExist:
             service = CustomerProfileService()
-
             customer_profile = CustomerProfile(user=request.user)
             customer_profile = service.create(customer_profile)
             customer_profile.save()

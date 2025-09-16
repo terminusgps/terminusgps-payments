@@ -1,5 +1,5 @@
 {% for addressprofile in addressprofile_list %}
-<section id="{{ addressprofile.pk }}" class="flex flex-col gap-4 rounded border bg-gray-100 p-4" hx-get="{{ addressprofile.get_absolute_url }}" hx-target="this" hx-trigger="load"></section>
+<section id="{{ addressprofile.pk }}" class="flex flex-col gap-4 rounded border bg-gray-100 p-4 drop-shadow" hx-get="{{ addressprofile.get_absolute_url }}" hx-target="this" hx-trigger="load"></section>
 {% empty %}
 <p>You don't have any address profiles.</p>
 {% endfor %}

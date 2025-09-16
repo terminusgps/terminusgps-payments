@@ -1,5 +1,5 @@
 <form class="flex w-full flex-col gap-4" hx-post="{% url 'terminusgps_payments:create payment profile' %}" hx-target="this" method="post">
-    {% if form.non_field_errors %}<section id="errors" class="rounded border border-current bg-red-100 p-2 text-red-700 animate-jiggle">{{ form.non_field_errors }}</section>{% endif %}
+    {% if form.non_field_errors %}<section id="errors" class="animate-jiggle rounded border border-current bg-red-100 p-2 text-red-700">{{ form.non_field_errors }}</section>{% endif %}
     {% csrf_token %}
     <div class="flex flex-col gap-2">
         <label for="{{ form.address.id_for_label }}" class="font-semibold">Billing Address</label>
@@ -9,14 +9,10 @@
         <label for="{{ form.credit_card.id_for_label }}" class="font-semibold">Credit Card</label>
         {{ form.credit_card }}
     </div>
-    <div class="flex flex-col gap-2 rounded border bg-gray-100 p-4">
+    <div class="flex flex-col gap-2 rounded border bg-gray-50 p-2">
         <div class="flex items-center gap-4">
             {{ form.default }}
             <label for="{{ form.default.id_for_label }}">Set as default?</label>
-        </div>
-        <div class="flex items-center gap-4">
-            {{ form.create_address_profile }}
-            <label for="{{ form.create_address_profile.id_for_label }}">Create shipping address from billing address?</label>
         </div>
     </div>
     <section id="buttons" class="flex flex-col gap-2">

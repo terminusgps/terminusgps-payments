@@ -1,0 +1,6 @@
+{% for subscription in subscription_list %}
+<section id="{{ subscription.pk }}" class="flex flex-col gap-4 rounded border bg-gray-100 p-4" hx-get="{{ subscription.get_absolute_url }}" hx-target="this" hx-trigger="load"></section>
+{% empty %}
+<p>You don't have any subscriptions.</p>
+{% endfor %}
+

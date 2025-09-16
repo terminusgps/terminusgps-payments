@@ -19,15 +19,8 @@ from terminusgps.authorizenet.service import (
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from terminusgps_payments.forms import PaymentProfileCreationForm
-from terminusgps_payments.models import (
-    AddressProfile,
-    CustomerProfile,
-    PaymentProfile,
-)
-from terminusgps_payments.services import (
-    AddressProfileService,
-    PaymentProfileService,
-)
+from terminusgps_payments.models import CustomerProfile, PaymentProfile
+from terminusgps_payments.services import PaymentProfileService
 
 
 class PaymentProfileCreateView(
@@ -48,12 +41,10 @@ class PaymentProfileCreateView(
     def form_valid(self, form: PaymentProfileCreationForm) -> HttpResponse:
         customer_profile = CustomerProfile.objects.get(user=self.request.user)
         payment_profile = PaymentProfile(customer_profile=customer_profile)
-        address_profile = AddressProfile(customer_profile=customer_profile)
 
         address = form.cleaned_data["address"]
         credit_card = form.cleaned_data["credit_card"]
         default = form.cleaned_data["default"]
-        create_address = form.cleaned_data["create_address_profile"]
 
         try:
             service = PaymentProfileService()
@@ -64,12 +55,6 @@ class PaymentProfileCreateView(
                 default=default,
             )
             payment_profile.save()
-            if create_address:
-                service = AddressProfileService()
-                address_profile = service.create(
-                    address_profile, address=address, default=default
-                )
-                address_profile.save()
             return HttpResponse(
                 status=200,
                 headers={
@@ -152,7 +137,6 @@ class PaymentProfileDetailView(
         if payment_profile := kwargs.get("object"):
             service = PaymentProfileService()
             profile = service.get(payment_profile)
-
             context["profile"] = profile
             context["icon_svg"] = self.get_credit_card_svg_icon(profile)
         return context

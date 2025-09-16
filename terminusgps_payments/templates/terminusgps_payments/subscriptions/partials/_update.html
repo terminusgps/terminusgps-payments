@@ -1,0 +1,6 @@
+<form class="" method="post" hx-post="{% url 'terminusgps_payments:update subscription' subscription.pk %}" hx-target="this">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Save</button>
+    <button hx-get="{{ subscription.get_absolute_url }}" hx-target="#{{ subscription.pk }}">Back</button>
+</form>

@@ -16,3 +16,8 @@ class AddressProfileAdmin(admin.ModelAdmin):
 @admin.register(models.PaymentProfile)
 class PaymentProfileAdmin(admin.ModelAdmin):
     list_display = ["customer_profile", "id"]
+
+
+@admin.register(models.Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ["customer_profile", "id"]
