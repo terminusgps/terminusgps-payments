@@ -2,5 +2,6 @@ from django.apps import AppConfig
 
 
 class TerminusgpsPaymentsConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'terminusgps_payments'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "terminusgps_payments"
+    verbose_name = "Terminus GPS Payments"
