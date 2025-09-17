@@ -1,11 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from terminusgps.authorizenet import api
-from terminusgps.authorizenet.service import (
-    AuthorizenetControllerExecutionError,
-    AuthorizenetService,
-)
 
 
 class CustomerProfile(models.Model):
@@ -23,23 +18,6 @@ class CustomerProfile(models.Model):
     def __str__(self) -> str:
         """Returns the customer's username."""
         return self.user.username
-
-    def save(self, **kwargs) -> None:
-        """Creates the customer profile in Authorizenet based on the user if :py:attr:`id` wasn't set."""
-        if not self.pk:
-            try:
-                service = AuthorizenetService()
-                response = service.call_api(
-                    *api.create_customer_profile(
-                        merchant_id=self.merchant_id,
-                        email=self.email,
-                        description=self.description,
-                    )
-                )
-                self.pk = int(response.customerProfileId)
-            except AuthorizenetControllerExecutionError:
-                raise
-        return super().save(**kwargs)
 
     @property
     def merchant_id(self) -> str:

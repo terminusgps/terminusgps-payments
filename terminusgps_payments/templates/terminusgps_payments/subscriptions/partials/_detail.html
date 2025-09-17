@@ -1,2 +1,11 @@
-{{ subscription }}
-<button hx-get="{% url 'terminusgps_payments:update subscription' subscription.pk %}">Update</button>
+<h2>{{ subscription.name }}</h2>
+<p>${{ profile.subscription.amount|floatformat:2 }}/mo</p>
+<section id="payment-profile" class="flex flex-col gap-4">
+    <h3 class="font-semibold">Payment Method</h3>
+    <section id="credit_card" class="rounded border bg-gray-200 p-2" hx-get="{{ subscription.payment_profile.get_absolute_url }}" hx-target="this" hx-select="#credit_card" hx-trigger="load" hx-indicator="#subscriptions-indicator"></section>
+</section>
+<section id="address-profile" class="flex flex-col gap-4">
+    <h3 class="font-semibold">Shipping Address</h3>
+    <section id="address" class="rounded border bg-gray-200 p-2" hx-get="{{ subscription.address_profile.get_absolute_url }}" hx-target="this" hx-select="#address" hx-trigger="load" hx-indicator="#subscriptions-indicator"></section>
+</section>
+<button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-terminus-red-900 bg-terminus-red-800 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-terminus-red-400" hx-get="{{ subscription.get_update_url }}">Update</button>

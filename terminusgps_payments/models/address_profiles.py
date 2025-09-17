@@ -2,6 +2,8 @@ from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
+from .managers import UserExclusiveManager
+
 
 class AddressProfile(models.Model):
     """An Authorizenet customer address profile."""
@@ -14,6 +16,7 @@ class AddressProfile(models.Model):
         related_name="address_profiles",
     )
     """Associated customer."""
+    objects = UserExclusiveManager()
 
     class Meta:
         verbose_name = _("address profile")

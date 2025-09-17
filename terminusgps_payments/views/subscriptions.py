@@ -1,3 +1,5 @@
+import typing
+
 from authorizenet import apicontractsv1
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -11,7 +13,11 @@ from terminusgps.authorizenet.service import (
 )
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments.models import Subscription
+from terminusgps_payments.models import (
+    AddressProfile,
+    PaymentProfile,
+    Subscription,
+)
 from terminusgps_payments.services import SubscriptionService
 
 
@@ -26,12 +32,24 @@ class SubscriptionDetailView(
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "subscription_pk"
-    queryset = Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/detail.html"
 
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        if subscription := kwargs.get("object"):
+            include_transactions = self.request.GET.get("transactions")
+            service = SubscriptionService()
+            context["profile"] = service.get(
+                subscription,
+                include_transactions=True
+                if str(include_transactions) == "on"
+                else False,
+            )
+        return context
+
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
+        return Subscription.objects.for_user(self.request.user).select_related(
+            "address_profile", "payment_profile"
         )
 
 
@@ -39,16 +57,30 @@ class SubscriptionUpdateView(
     LoginRequiredMixin, HtmxTemplateResponseMixin, UpdateView
 ):
     content_type = "text/html"
+    fields = ["payment_profile", "address_profile"]
     http_method_names = ["get", "post"]
     model = Subscription
-    fields = ["payment_profile", "address_profile"]
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_update.html"
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "subscription_pk"
-    queryset = Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/update.html"
+
+    def get_queryset(self) -> QuerySet:
+        return Subscription.objects.for_user(self.request.user).select_related(
+            "address_profile", "payment_profile"
+        )
+
+    def get_form(self, form_class: forms.Form | None = None) -> forms.Form:
+        form = super().get_form(form_class=form_class)
+        payment_qs = PaymentProfile.objects.for_user(self.request.user)
+        address_qs = AddressProfile.objects.for_user(self.request.user)
+        form.fields["payment_profile"].queryset = payment_qs
+        form.fields["address_profile"].queryset = address_qs
+        form.fields["payment_profile"].empty_label = None
+        form.fields["address_profile"].empty_label = None
+        return form
 
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
@@ -56,20 +88,22 @@ class SubscriptionUpdateView(
             address_updated = "address_profile" in form.changed_data
             payment_updated = "payment_profile" in form.changed_data
 
-            anet_subscription = apicontractsv1.ARBSubscriptionType()
-            anet_subscription.profile = apicontractsv1.customerProfileIdType()
-            anet_subscription.profile.customerProfileId = str(
-                subscription.customer_profile.pk
-            )
-
-            if address_updated:
-                pk = form.cleaned_data["address_profile"].pk
-                anet_subscription.profile.customerAddressId = str(pk)
-            if payment_updated:
-                pk = form.cleaned_data["payment_profile"].pk
-                anet_subscription.profile.customerPaymentProfileId = str(pk)
             if address_updated or payment_updated:
+                profile = apicontractsv1.customerProfileIdType()
+                profile.customerProfileId = str(
+                    subscription.customer_profile.pk
+                )
+                if address_updated:
+                    pk = form.cleaned_data["address_profile"].pk
+                    profile.customerAddressId = str(pk)
+                if payment_updated:
+                    pk = form.cleaned_data["payment_profile"].pk
+                    profile.customerPaymentProfileId = str(pk)
+
+                anet_subscription = apicontractsv1.ARBSubscriptionType()
+                anet_subscription.profile = profile
                 service = SubscriptionService()
+                # Call Authorizenet API
                 service.update(subscription, anet_subscription)
             return super().form_valid(form=form)
         except AuthorizenetControllerExecutionError as e:
@@ -85,11 +119,6 @@ class SubscriptionUpdateView(
                     )
             return self.form_invalid(form=form)
 
-    def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
-        )
-
 
 class SubscriptionDeleteView(
     LoginRequiredMixin, HtmxTemplateResponseMixin, DeleteView
@@ -102,13 +131,10 @@ class SubscriptionDeleteView(
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "subscription_pk"
-    queryset = Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/delete.html"
 
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
-        )
+        return Subscription.objects.for_user(self.request.user)
 
 
 class SubscriptionListView(
@@ -122,10 +148,10 @@ class SubscriptionListView(
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_list.html"
     )
-    queryset = Subscription.objects.none()
     template_name = "terminusgps_payments/subscriptions/list.html"
+    ordering = "name"
 
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
+        return Subscription.objects.for_user(self.request.user).order_by(
+            self.get_ordering()
         )

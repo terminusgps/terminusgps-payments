@@ -3,6 +3,8 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from terminusgps.authorizenet.constants import SubscriptionStatus
 
+from .managers import UserExclusiveManager
+
 
 class Subscription(models.Model):
     id = models.PositiveBigIntegerField(primary_key=True)
@@ -21,8 +23,19 @@ class Subscription(models.Model):
         related_name="subscriptions",
     )
     """Associated customer profile."""
-    payment_profile_pk = models.PositiveIntegerField(default=0)
-    address_profile_pk = models.PositiveIntegerField(default=0)
+    payment_profile = models.ForeignKey(
+        "terminusgps_payments.PaymentProfile",
+        on_delete=models.RESTRICT,
+        related_name="subscriptions",
+    )
+    """Associated payment profile."""
+    address_profile = models.ForeignKey(
+        "terminusgps_payments.AddressProfile",
+        on_delete=models.RESTRICT,
+        related_name="subscriptions",
+    )
+    """Associated address profile."""
+    objects = UserExclusiveManager()
 
     class Meta:
         verbose_name = _("subscription")
@@ -36,5 +49,12 @@ class Subscription(models.Model):
         """Returns a URL pointing to the subscription's detail view."""
         return reverse(
             "terminusgps_payments:detail subscription",
+            kwargs={"subscription_pk": self.pk},
+        )
+
+    def get_update_url(self) -> str:
+        """Returns a URL pointing to the subscription's update view."""
+        return reverse(
+            "terminusgps_payments:update subscription",
             kwargs={"subscription_pk": self.pk},
         )

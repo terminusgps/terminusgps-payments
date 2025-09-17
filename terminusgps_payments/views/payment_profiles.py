@@ -102,7 +102,6 @@ class PaymentProfileDetailView(
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
@@ -128,8 +127,8 @@ class PaymentProfileDetailView(
         return icon
 
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
+        return PaymentProfile.objects.for_user(
+            self.request.user
         ).select_related("customer_profile")
 
     def get_context_data(self, **kwargs) -> dict:
@@ -153,13 +152,12 @@ class PaymentProfileDeleteView(
     )
     permission_denied_message = "Please login to view this content."
     pk_url_kwarg = "profile_pk"
-    queryset = PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/delete.html"
 
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
+        return PaymentProfile.objects.for_user(
+            self.request.user
         ).select_related("customer_profile")
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
@@ -220,13 +218,12 @@ class PaymentProfileListView(
         "terminusgps_payments/payment_profiles/partials/_list.html"
     )
     permission_denied_message = "Please login to view this content."
-    queryset = PaymentProfile.objects.none()
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/list.html"
 
     def get_queryset(self) -> QuerySet:
         return (
-            self.model.objects.filter(customer_profile__user=self.request.user)
+            PaymentProfile.objects.for_user(self.request.user)
             .select_related("customer_profile")
             .order_by(self.get_ordering())
         )
