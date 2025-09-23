@@ -11,10 +11,12 @@ class Subscription(models.Model):
     """Authorizenet subscription id."""
     name = models.CharField(max_length=31)
     """Subscription name."""
+    amount = models.DecimalField(max_digits=9, decimal_places=2, default=24.99)
+    """Subscription dollar amount."""
     status = models.CharField(
         max_length=16,
         choices=SubscriptionStatus.choices,
-        default=SubscriptionStatus.ACTIVE,
+        default=SubscriptionStatus.UNKNOWN,
     )
     """Subscription status."""
     customer_profile = models.ForeignKey(
@@ -56,5 +58,12 @@ class Subscription(models.Model):
         """Returns a URL pointing to the subscription's update view."""
         return reverse(
             "terminusgps_payments:update subscription",
+            kwargs={"subscription_pk": self.pk},
+        )
+
+    def get_delete_url(self) -> str:
+        """Returns a URL pointing to the subscription's delete view."""
+        return reverse(
+            "terminusgps_payments:delete subscription",
             kwargs={"subscription_pk": self.pk},
         )

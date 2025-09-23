@@ -1,16 +1,9 @@
 import typing
 
-from authorizenet import apicontractsv1
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
-from django.http import HttpResponse
-from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, ListView, UpdateView
-from terminusgps.authorizenet.service import (
-    AuthorizenetControllerExecutionError,
-)
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from terminusgps_payments.models import (
@@ -37,20 +30,13 @@ class SubscriptionDetailView(
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context: dict[str, typing.Any] = super().get_context_data(**kwargs)
         if subscription := kwargs.get("object"):
-            include_transactions = self.request.GET.get("transactions")
             service = SubscriptionService()
-            context["profile"] = service.get(
-                subscription,
-                include_transactions=True
-                if str(include_transactions) == "on"
-                else False,
+            subscription, api_response = service.get(
+                subscription, include_transactions=True
             )
+            if api_response is not None:
+                context["profile"] = api_response
         return context
-
-    def get_queryset(self) -> QuerySet:
-        return Subscription.objects.for_user(self.request.user).select_related(
-            "address_profile", "payment_profile"
-        )
 
 
 class SubscriptionUpdateView(
@@ -67,57 +53,24 @@ class SubscriptionUpdateView(
     pk_url_kwarg = "subscription_pk"
     template_name = "terminusgps_payments/subscriptions/update.html"
 
-    def get_queryset(self) -> QuerySet:
-        return Subscription.objects.for_user(self.request.user).select_related(
-            "address_profile", "payment_profile"
-        )
-
-    def get_form(self, form_class: forms.Form | None = None) -> forms.Form:
+    def get_form(self, form_class=None) -> forms.ModelForm:
         form = super().get_form(form_class=form_class)
         payment_qs = PaymentProfile.objects.for_user(self.request.user)
         address_qs = AddressProfile.objects.for_user(self.request.user)
         form.fields["payment_profile"].queryset = payment_qs
-        form.fields["address_profile"].queryset = address_qs
         form.fields["payment_profile"].empty_label = None
+        form.fields["payment_profile"].widget.attrs.update(
+            {"class": "p-2 rounded border w-full"}
+        )
+        form.fields["address_profile"].queryset = address_qs
         form.fields["address_profile"].empty_label = None
+        form.fields["address_profile"].widget.attrs.update(
+            {"class": "p-2 rounded border w-full"}
+        )
         return form
 
-    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
-        try:
-            subscription = self.get_object()
-            address_updated = "address_profile" in form.changed_data
-            payment_updated = "payment_profile" in form.changed_data
-
-            if address_updated or payment_updated:
-                profile = apicontractsv1.customerProfileIdType()
-                profile.customerProfileId = str(
-                    subscription.customer_profile.pk
-                )
-                if address_updated:
-                    pk = form.cleaned_data["address_profile"].pk
-                    profile.customerAddressId = str(pk)
-                if payment_updated:
-                    pk = form.cleaned_data["payment_profile"].pk
-                    profile.customerPaymentProfileId = str(pk)
-
-                anet_subscription = apicontractsv1.ARBSubscriptionType()
-                anet_subscription.profile = profile
-                service = SubscriptionService()
-                # Call Authorizenet API
-                service.update(subscription, anet_subscription)
-            return super().form_valid(form=form)
-        except AuthorizenetControllerExecutionError as e:
-            match e.code:
-                case _:
-                    form.add_error(
-                        None,
-                        ValidationError(
-                            _("%(code)s: '%(message)s'"),
-                            code="invalid",
-                            params={"code": e.code, "message": e.message},
-                        ),
-                    )
-            return self.form_invalid(form=form)
+    def get_queryset(self) -> QuerySet:
+        return Subscription.objects.for_user(self.request.user)
 
 
 class SubscriptionDeleteView(

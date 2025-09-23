@@ -7,7 +7,6 @@ from . import views
 
 app_name = "terminusgps_payments"
 urlpatterns = [
-    path("", views.AccountView.as_view(), name="account"),
     path(
         "subscriptions/list/",
         views.SubscriptionListView.as_view(),

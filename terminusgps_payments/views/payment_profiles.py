@@ -1,10 +1,7 @@
-import os
 import typing
 
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.staticfiles import finders
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
@@ -12,7 +9,6 @@ from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, FormView, ListView
-from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
 )
@@ -42,18 +38,20 @@ class PaymentProfileCreateView(
         customer_profile = CustomerProfile.objects.get(user=self.request.user)
         payment_profile = PaymentProfile(customer_profile=customer_profile)
 
-        address = form.cleaned_data["address"]
-        credit_card = form.cleaned_data["credit_card"]
-        default = form.cleaned_data["default"]
-
         try:
             service = PaymentProfileService()
-            payment_profile = service.create(
+            payment_profile, api_response = service.create(
                 payment_profile,
-                address=address,
-                credit_card=credit_card,
-                default=default,
+                address=form.cleaned_data["address"],
+                credit_card=form.cleaned_data["credit_card"],
+                default=form.cleaned_data["default"],
             )
+            if api_response is None:
+                raise AuthorizenetControllerExecutionError(
+                    code="1",
+                    message="Whoops! Something went wrong calling the Authorizenet API. Please try again later.",
+                )
+            payment_profile.pk = int(api_response.customerPaymentProfileId)
             payment_profile.save()
             return HttpResponse(
                 status=200,
@@ -105,40 +103,30 @@ class PaymentProfileDetailView(
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
-    def get_credit_card_svg_icon(
-        self, payment_profile_response: ObjectifiedElement
-    ) -> str | None:
-        card_type = str(
-            payment_profile_response.paymentProfile.payment.creditCard.cardType
-        ).lower()
-
-        cache_key = f"get_credit_card_svg_icon:{card_type}"
-        if cached_icon := cache.get(cache_key):
-            return cached_icon
-
-        path = finders.find(
-            f"terminusgps_payments/icons/{card_type}.svg", find_all=False
-        )
-        if os.path.exists(path):
-            with open(path, "r") as f:
-                icon = f.read()
-
-        cache.set(cache_key, icon, timeout=60 * 15)
-        return icon
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        if payment_profile := kwargs.get("object"):
+            if (
+                payment_profile.address is None
+                or payment_profile.credit_card is None
+            ):
+                # Retrieve payment profile data from Authorizenet
+                service = PaymentProfileService()
+                payment_profile, api_response = service.get(payment_profile)
+                if api_response is not None:
+                    payment_profile.address = getattr(
+                        api_response.paymentProfile, "billTo"
+                    )
+                    payment_profile.credit_card = getattr(
+                        api_response.paymentProfile.payment, "creditCard"
+                    )
+                    payment_profile.save()
+        return context
 
     def get_queryset(self) -> QuerySet:
         return PaymentProfile.objects.for_user(
             self.request.user
         ).select_related("customer_profile")
-
-    def get_context_data(self, **kwargs) -> dict:
-        context: dict = super().get_context_data(**kwargs)
-        if payment_profile := kwargs.get("object"):
-            service = PaymentProfileService()
-            profile = service.get(payment_profile)
-            context["profile"] = profile
-            context["icon_svg"] = self.get_credit_card_svg_icon(profile)
-        return context
 
 
 class PaymentProfileDeleteView(
@@ -160,19 +148,16 @@ class PaymentProfileDeleteView(
             self.request.user
         ).select_related("customer_profile")
 
-    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
-        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        if payment_profile := kwargs.get("object"):
-            service = PaymentProfileService()
-            context["profile"] = service.get(payment_profile)
-        return context
-
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
             service = PaymentProfileService()
             payment_profile = self.get_object()
-
-            service.delete(payment_profile)
+            payment_profile, api_response = service.delete(payment_profile)
+            if api_response is None:
+                raise AuthorizenetControllerExecutionError(
+                    code="1",
+                    message="Whoops! Something went wrong calling the Authorizenet API. Please try again later.",
+                )
             payment_profile.delete()
             return HttpResponse(
                 status=200,

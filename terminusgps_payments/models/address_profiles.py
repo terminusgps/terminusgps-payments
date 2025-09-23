@@ -2,6 +2,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
+from .fields import AuthorizenetAddressField
 from .managers import UserExclusiveManager
 
 
@@ -16,6 +17,8 @@ class AddressProfile(models.Model):
         related_name="address_profiles",
     )
     """Associated customer."""
+
+    address = AuthorizenetAddressField(default=None, null=True, blank=True)
     objects = UserExclusiveManager()
 
     class Meta:
@@ -23,8 +26,12 @@ class AddressProfile(models.Model):
         verbose_name_plural = _("address profiles")
 
     def __str__(self) -> str:
-        """Returns 'Address Profile #<pk>'."""
-        return f"Address Profile #{self.pk}"
+        """Returns the street or 'Address Profile #<pk>'."""
+        return (
+            str(self.address.address)
+            if self.address is not None
+            else f"Address Profile #{self.pk}"
+        )
 
     def get_absolute_url(self) -> str:
         return reverse(

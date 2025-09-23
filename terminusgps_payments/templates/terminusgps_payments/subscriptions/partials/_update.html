@@ -1,8 +1,8 @@
-<form id="subscription-update-form" class="flex flex-col gap-4" method="post" hx-post="{{ subscription.get_update_url }}">
+<form id="subscription-{{ subscription.pk }}" class="flex flex-col gap-4 rounded border p-4" method="post" hx-post="{{ subscription.get_update_url }}" hx-swap="outerHTML">
     {% csrf_token %}
     {{ form }}
     <section id="buttons" class="flex flex-col gap-2">
-        <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-terminus-red-900 bg-terminus-red-800 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-terminus-red-400" type="submit" hx-target="#subscription-update-form">Save</button>
-        <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-gray-600 bg-gray-400 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-600" hx-get="{{ subscription.get_absolute_url }}">Back</button>
+        <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-terminus-red-900 bg-terminus-red-800 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-terminus-red-400" type="submit" hx-target="#subscription-{{ subscription.pk }}">Save</button>
+        <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-gray-600 bg-gray-400 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-600" hx-get="{{ subscription.get_absolute_url }}" hx-target="#subscription-{{ subscription.pk }}">Back</button>
     </section>
 </form>

@@ -1,0 +1,5 @@
+<form hx-post="{% url 'terminusgps_payments:create subscription' %}">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Subscribe</button>
+</form>

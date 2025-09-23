@@ -13,6 +13,6 @@
     </div>
     <section id="buttons" class="flex flex-col gap-2">
         <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-terminus-red-900 bg-terminus-red-800 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-terminus-red-400" type="submit">Save</button>
-        <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-gray-600 bg-gray-400 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-600" hx-get="{% url 'terminusgps_payments:account' %}" hx-target="#address-profiles-list" hx-select="#address-profiles-list">Cancel</button>
+        <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-gray-600 bg-gray-400 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-600" hx-get="{% url 'terminusgps_payments:list address profile' %}" hx-target="#address-profiles-list" hx-select="#address-profiles-list">Cancel</button>
     </section>
 </form>
