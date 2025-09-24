@@ -1,11 +1,9 @@
-import typing
-
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, FormView, ListView
@@ -16,7 +14,7 @@ from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from terminusgps_payments.forms import PaymentProfileCreationForm
 from terminusgps_payments.models import CustomerProfile, PaymentProfile
-from terminusgps_payments.services import PaymentProfileService
+from terminusgps_payments.services import AuthorizenetService
 
 
 class PaymentProfileCreateView(
@@ -33,25 +31,23 @@ class PaymentProfileCreateView(
     success_url = reverse_lazy("terminusgps_payments:list payment profile")
     template_name = "terminusgps_payments/payment_profiles/create.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        super().setup(request, *args, **kwargs)
+        self.anet_service = AuthorizenetService()
+
     @transaction.atomic
     def form_valid(self, form: PaymentProfileCreationForm) -> HttpResponse:
         customer_profile = CustomerProfile.objects.get(user=self.request.user)
         payment_profile = PaymentProfile(customer_profile=customer_profile)
 
         try:
-            service = PaymentProfileService()
-            payment_profile, api_response = service.create(
+            anet_response = self.anet_service.create_payment_profile(
                 payment_profile,
                 address=form.cleaned_data["address"],
                 credit_card=form.cleaned_data["credit_card"],
                 default=form.cleaned_data["default"],
             )
-            if api_response is None:
-                raise AuthorizenetControllerExecutionError(
-                    code="1",
-                    message="Whoops! Something went wrong calling the Authorizenet API. Please try again later.",
-                )
-            payment_profile.pk = int(api_response.customerPaymentProfileId)
+            payment_profile.pk = int(anet_response.customerPaymentProfileId)
             payment_profile.save()
             return HttpResponse(
                 status=200,
@@ -103,26 +99,6 @@ class PaymentProfileDetailView(
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
-    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
-        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        if payment_profile := kwargs.get("object"):
-            if (
-                payment_profile.address is None
-                or payment_profile.credit_card is None
-            ):
-                # Retrieve payment profile data from Authorizenet
-                service = PaymentProfileService()
-                payment_profile, api_response = service.get(payment_profile)
-                if api_response is not None:
-                    payment_profile.address = getattr(
-                        api_response.paymentProfile, "billTo"
-                    )
-                    payment_profile.credit_card = getattr(
-                        api_response.paymentProfile.payment, "creditCard"
-                    )
-                    payment_profile.save()
-        return context
-
     def get_queryset(self) -> QuerySet:
         return PaymentProfile.objects.for_user(
             self.request.user
@@ -143,6 +119,10 @@ class PaymentProfileDeleteView(
     raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/delete.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        super().setup(request, *args, **kwargs)
+        self.anet_service = AuthorizenetService()
+
     def get_queryset(self) -> QuerySet:
         return PaymentProfile.objects.for_user(
             self.request.user
@@ -150,14 +130,8 @@ class PaymentProfileDeleteView(
 
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
-            service = PaymentProfileService()
             payment_profile = self.get_object()
-            payment_profile, api_response = service.delete(payment_profile)
-            if api_response is None:
-                raise AuthorizenetControllerExecutionError(
-                    code="1",
-                    message="Whoops! Something went wrong calling the Authorizenet API. Please try again later.",
-                )
+            self.anet_service.delete_payment_profile(payment_profile)
             payment_profile.delete()
             return HttpResponse(
                 status=200,

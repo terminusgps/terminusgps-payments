@@ -1,9 +1,14 @@
-import typing
-
+from authorizenet import apicontractsv1
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
+from django.http import HttpRequest, HttpResponse
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, ListView, UpdateView
+from terminusgps.authorizenet.service import (
+    AuthorizenetControllerExecutionError,
+)
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from terminusgps_payments.models import (
@@ -11,7 +16,7 @@ from terminusgps_payments.models import (
     PaymentProfile,
     Subscription,
 )
-from terminusgps_payments.services import SubscriptionService
+from terminusgps_payments.services import AuthorizenetService
 
 
 class SubscriptionDetailView(
@@ -27,16 +32,8 @@ class SubscriptionDetailView(
     pk_url_kwarg = "subscription_pk"
     template_name = "terminusgps_payments/subscriptions/detail.html"
 
-    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
-        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        if subscription := kwargs.get("object"):
-            service = SubscriptionService()
-            subscription, api_response = service.get(
-                subscription, include_transactions=True
-            )
-            if api_response is not None:
-                context["profile"] = api_response
-        return context
+    def get_queryset(self) -> QuerySet:
+        return Subscription.objects.for_user(self.request.user)
 
 
 class SubscriptionUpdateView(
@@ -53,24 +50,56 @@ class SubscriptionUpdateView(
     pk_url_kwarg = "subscription_pk"
     template_name = "terminusgps_payments/subscriptions/update.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        super().setup(request, *args, **kwargs)
+        self.anet_service = AuthorizenetService()
+
+    def get_queryset(self) -> QuerySet:
+        return Subscription.objects.for_user(self.request.user)
+
     def get_form(self, form_class=None) -> forms.ModelForm:
         form = super().get_form(form_class=form_class)
         payment_qs = PaymentProfile.objects.for_user(self.request.user)
         address_qs = AddressProfile.objects.for_user(self.request.user)
         form.fields["payment_profile"].queryset = payment_qs
         form.fields["payment_profile"].empty_label = None
-        form.fields["payment_profile"].widget.attrs.update(
-            {"class": "p-2 rounded border w-full"}
-        )
         form.fields["address_profile"].queryset = address_qs
         form.fields["address_profile"].empty_label = None
-        form.fields["address_profile"].widget.attrs.update(
-            {"class": "p-2 rounded border w-full"}
-        )
         return form
 
-    def get_queryset(self) -> QuerySet:
-        return Subscription.objects.for_user(self.request.user)
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        try:
+            if any(
+                [
+                    "payment_profile" in form.changed_data,
+                    "address_profile" in form.changed_data,
+                ]
+            ):
+                subscription = self.get_object()
+                cprofile_pk = subscription.customer_profile.pk
+                pprofile_pk = form.cleaned_data["payment_profile"].pk
+                aprofile_pk = form.cleaned_data["address_profile"].pk
+                anet_profile = apicontractsv1.customerProfileIdType()
+                anet_profile.customerProfileId = str(cprofile_pk)
+                anet_profile.customerPaymentProfileId = str(pprofile_pk)
+                anet_profile.customerAddressId = str(aprofile_pk)
+                self.anet_service.update_subscription(
+                    subscription,
+                    apicontractsv1.ARBSubscriptionType(profile=anet_profile),
+                )
+            return super().form_valid(form=form)
+        except AuthorizenetControllerExecutionError as e:
+            match e.code:
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _("%(code)s: %(message)s"),
+                            code="invalid",
+                            params={"code": e.code, "message": e.message},
+                        ),
+                    )
+            return self.form_invalid(form=form)
 
 
 class SubscriptionDeleteView(
@@ -86,8 +115,41 @@ class SubscriptionDeleteView(
     pk_url_kwarg = "subscription_pk"
     template_name = "terminusgps_payments/subscriptions/delete.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        super().setup(request, *args, **kwargs)
+        self.anet_service = AuthorizenetService()
+
     def get_queryset(self) -> QuerySet:
         return Subscription.objects.for_user(self.request.user)
+
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        try:
+            subscription = self.get_object()
+            self.anet_service.delete_subscription(subscription)
+            subscription.delete()
+            return HttpResponse(status=200)
+        except AuthorizenetControllerExecutionError as e:
+            match e.code:
+                case "E00105":
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _(
+                                "Whoops! This payment method is currently associated with an active or suspended subscription. Nothing was deleted."
+                            ),
+                            code="invalid",
+                        ),
+                    )
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _("%(code)s: '%(message)s'"),
+                            code="invalid",
+                            params={"code": e.code, "message": e.message},
+                        ),
+                    )
+            return self.form_invalid(form=form)
 
 
 class SubscriptionListView(

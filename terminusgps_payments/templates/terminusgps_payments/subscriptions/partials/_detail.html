@@ -1,8 +1,8 @@
 <section id="subscription-{{ subscription.pk }}" class="flex flex-col gap-4 rounded border p-4">
     <section id="info" class="flex flex-col gap-2 text-lg">
         <p id="name" class="font-semibold">{{ subscription.name }}</p>
-        <p id="amount">${{ profile.subscription.amount|floatformat:2 }}/mo</p>
-        <p id="status">{{ subscription.status }}</p>
+        <p id="amount">${{ subscription.amount|floatformat:2 }}/mo</p>
+        <p id="status">{{ subscription.status|title }}</p>
     </section>
     <section id="payment-profile" class="flex flex-col gap-4">
         <h3 class="font-semibold">Payment Profile</h3>

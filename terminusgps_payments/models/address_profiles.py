@@ -26,12 +26,8 @@ class AddressProfile(models.Model):
         verbose_name_plural = _("address profiles")
 
     def __str__(self) -> str:
-        """Returns the street or 'Address Profile #<pk>'."""
-        return (
-            str(self.address.address)
-            if self.address is not None
-            else f"Address Profile #{self.pk}"
-        )
+        """Returns the address profile id."""
+        return str(self.pk)
 
     def get_absolute_url(self) -> str:
         return reverse(

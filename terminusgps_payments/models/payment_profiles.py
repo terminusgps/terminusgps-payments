@@ -29,14 +29,8 @@ class PaymentProfile(models.Model):
         verbose_name_plural = _("payment profiles")
 
     def __str__(self) -> str:
-        """Returns '<type> ending in <last_4>' or 'Payment Profile #<pk>'."""
-        if self.credit_card is not None:
-            card_type, last_4 = (
-                str(getattr(self.credit_card, "cardType")),
-                str(getattr(self.credit_card, "cardNumber"))[-4:],
-            )
-            return f"{card_type} ending in {last_4}"
-        return f"Payment Profile #{self.pk}"
+        """Returns the payment profile id."""
+        return str(self.pk)
 
     def get_absolute_url(self) -> str:
         """Returns a URL pointing to the payment profile's detail view."""

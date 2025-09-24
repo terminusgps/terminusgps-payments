@@ -48,6 +48,25 @@ INSTALLED_APPS = [
     "terminusgps_payments.apps.TerminusgpsPaymentsConfig",
 ]
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+        "terminusgps_payments": {
+            "handlers": ["console"],
+            "level": os.getenv("TERMINUSGPS_PAYMENTS_LOG_LEVEL", "INFO"),
+            "propagate": True,
+        },
+    },
+}
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
