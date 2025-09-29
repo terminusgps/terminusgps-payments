@@ -1,7 +1,5 @@
 <form method="post" hx-post="{% url 'terminusgps_payments:delete payment profile' paymentprofile.pk %}">
-    {% with profile.paymentProfile.payment.creditCard as cc %}
     {% csrf_token %}
     {{ form }}
-    <button class="w-full cursor-pointer rounded border border-current bg-gray-50 p-2 text-red-600 transition-colors duration-300 ease-in-out hover:bg-red-50" hx-post="{% url 'terminusgps_payments:delete payment profile' paymentprofile.pk %}" hx-confirm="Delete {{ cc.cardType }} ending in {{ cc.cardNumber|cut:'XXXX' }}?">Delete</button>
-    {% endwith %}
+    <button class="w-full cursor-pointer rounded border border-current bg-gray-50 p-2 text-red-600 transition-colors duration-300 ease-in-out hover:bg-red-50" hx-post="{% url 'terminusgps_payments:delete payment profile' paymentprofile.pk %}" hx-confirm="Delete {{ paymentprofile.credit_card.cardType }} ending in {{ paymentprofile.credit_card.cardNumber|cut:'XXXX' }}?">Delete</button>
 </form>
