@@ -16,3 +16,6 @@ class TerminusgpsPaymentsConfig(AppConfig):
         post_save.connect(
             signals.hydrate_payment_profile, sender=models.PaymentProfile
         )
+        post_save.connect(
+            signals.hydrate_subscription_status, sender=models.Subscription
+        )

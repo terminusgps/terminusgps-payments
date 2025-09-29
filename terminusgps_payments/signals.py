@@ -45,3 +45,18 @@ def hydrate_payment_profile(sender, **kwargs):
     except (AuthorizenetControllerExecutionError, ValueError) as e:
         logger.critical(e)
         raise
+
+
+def hydrate_subscription_status(sender, **kwargs):
+    try:
+        if subscription := kwargs.get("instance"):
+            if (
+                subscription.pk is not None
+                and subscription.status == "unknown"
+            ):
+                anet_response = service.get_subscription_status(subscription)
+                subscription.status = getattr(anet_response, "status")
+                subscription.save(update_fields=["status"])
+    except (AuthorizenetControllerExecutionError, ValueError) as e:
+        logger.critical(e)
+        raise
