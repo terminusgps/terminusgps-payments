@@ -5,7 +5,9 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.cache import cache_page
 from django.views.generic import DeleteView, DetailView, FormView, ListView
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
@@ -85,6 +87,7 @@ class PaymentProfileCreateView(
             return self.form_invalid(form=form)
 
 
+@method_decorator(cache_page(timeout=60 * 15), name="dispatch")
 class PaymentProfileDetailView(
     LoginRequiredMixin, HtmxTemplateResponseMixin, DetailView
 ):

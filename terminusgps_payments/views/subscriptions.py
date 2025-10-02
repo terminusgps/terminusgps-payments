@@ -4,7 +4,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.cache import cache_page
 from django.views.generic import DeleteView, DetailView, ListView, UpdateView
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
@@ -19,6 +21,7 @@ from terminusgps_payments.models import (
 from terminusgps_payments.services import AuthorizenetService
 
 
+@method_decorator(cache_page(timeout=60 * 3), name="dispatch")
 class SubscriptionDetailView(
     LoginRequiredMixin, HtmxTemplateResponseMixin, DetailView
 ):
