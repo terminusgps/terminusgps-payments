@@ -18,10 +18,16 @@ from authorizenet.constants import constants
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 DEBUG = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+DJANGO_ENCRYPTED_FIELD_ALGORITHM = os.getenv(
+    "DJANGO_ENCRYPTED_FIELD_ALGORITHM", "SS20"
+)
+DJANGO_ENCRYPTED_FIELD_KEY = os.getenv(
+    "DJANGO_ENCRYPTED_FIELD_KEY",
+    b"\x8dS\xf7'xT\\\xc9O\x91\x8f\xfc\xd5\xc9\xaf\\.\xb5=J\xc9\x10\xd4\x1b9Zl\x19\xdd\xcc+\xcf",
+)
 LANGUAGE_CODE = "en-us"
 MERCHANT_AUTH_ENVIRONMENT = constants.SANDBOX
 MERCHANT_AUTH_LOGIN_ID = os.getenv("MERCHANT_AUTH_LOGIN_ID")

@@ -28,7 +28,7 @@ def hydrate_address_profile(sender, **kwargs):
 def hydrate_payment_profile(sender, **kwargs):
     try:
         if payment_profile := kwargs.get("instance"):
-            if payment_profile.pk is not None and all(
+            if payment_profile.pk is not None and any(
                 [
                     payment_profile.credit_card is None,
                     payment_profile.address is None,

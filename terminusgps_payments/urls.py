@@ -1,12 +1,15 @@
 from django.urls import path
 
-# from django.views.decorators.cache import cache_page
 from . import views
 
-# cached = lambda view_func: cache_page(timeout=60 * 15)(view_func)
-
 app_name = "terminusgps_payments"
+
 urlpatterns = [
+    path(
+        "customers/<int:profile_pk>/detail/",
+        views.CustomerProfileDetailView.as_view(),
+        name="detail customer profile",
+    ),
     path(
         "subscriptions/list/",
         views.SubscriptionListView.as_view(),

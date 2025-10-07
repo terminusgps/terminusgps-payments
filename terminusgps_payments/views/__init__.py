@@ -4,6 +4,7 @@ from .address_profiles import (
     AddressProfileDetailView,
     AddressProfileListView,
 )
+from .customer_profiles import CustomerProfileDetailView
 from .payment_profiles import (
     PaymentProfileCreateView,
     PaymentProfileDeleteView,

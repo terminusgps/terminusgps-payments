@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 
@@ -18,6 +19,12 @@ class CustomerProfile(models.Model):
     def __str__(self) -> str:
         """Returns the customer's username."""
         return self.user.username
+
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "terminusgps_payments:detail customer profile",
+            kwargs={"profile_pk": self.pk},
+        )
 
     @property
     def merchant_id(self) -> str:
