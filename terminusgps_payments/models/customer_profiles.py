@@ -9,7 +9,11 @@ class CustomerProfile(models.Model):
 
     id = models.BigIntegerField(primary_key=True)
     """Authorizenet customer profile id."""
-    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name="customer_profile",
+    )
     """Associated user."""
 
     class Meta:

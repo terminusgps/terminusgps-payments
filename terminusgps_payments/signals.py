@@ -1,5 +1,6 @@
 import logging
 
+from terminusgps.authorizenet.constants import SubscriptionStatus
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
 )
@@ -52,7 +53,7 @@ def hydrate_subscription_status(sender, **kwargs):
         if subscription := kwargs.get("instance"):
             if (
                 subscription.pk is not None
-                and subscription.status == "unknown"
+                and subscription.status == SubscriptionStatus.UNKNOWN
             ):
                 anet_response = service.get_subscription_status(subscription)
                 subscription.status = getattr(anet_response, "status")
