@@ -20,6 +20,10 @@ def delete_address_profile_in_authorizenet(sender, **kwargs):
             ):
                 service.delete_address_profile(address_profile)
     except (AuthorizenetControllerExecutionError, ValueError) as e:
+        if hasattr(e, "code"):
+            if getattr(e, "code") == "E00040":
+                # Already gone in Authorizenet
+                return
         logger.critical(e)
         raise
 
@@ -32,6 +36,10 @@ def delete_payment_profile_in_authorizenet(sender, **kwargs):
             ):
                 service.delete_payment_profile(payment_profile)
     except (AuthorizenetControllerExecutionError, ValueError) as e:
+        if hasattr(e, "code"):
+            if getattr(e, "code") == "E00040":
+                # Already gone in Authorizenet
+                return
         logger.critical(e)
         raise
 
@@ -42,6 +50,10 @@ def delete_customer_profile_in_authorizenet(sender, **kwargs):
             if customer_profile.pk:
                 service.delete_customer_profile(customer_profile)
     except (AuthorizenetControllerExecutionError, ValueError) as e:
+        if hasattr(e, "code"):
+            if getattr(e, "code") == "E00040":
+                # Already gone in Authorizenet
+                return
         logger.critical(e)
         raise
 
