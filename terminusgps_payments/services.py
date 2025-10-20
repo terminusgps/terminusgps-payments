@@ -1,5 +1,6 @@
 from authorizenet import apicontractsv1
 from django.conf import settings
+from django.contrib.auth.models import AbstractBaseUser
 from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import (
@@ -62,6 +63,30 @@ class AuthorizenetService(AuthorizenetServiceBase):
             api.get_customer_profile(
                 customer_profile_id=customer_profile.pk,
                 include_issuer_info=include_issuer_info,
+            )
+        )
+
+    def get_customer_profile_by_user(
+        self, user: AbstractBaseUser, include_issuer_info: bool = False
+    ) -> ObjectifiedElement:
+        """
+        Returns the customer profile from Authorizenet.
+
+        :param user: A Django user with an email address attached.
+        :type user: ~django.contrib.auth.models.AbstractBaseUser
+        :param include_issuer_info: Whether to include issuer info in the response. Default is :py:obj:`False`.
+        :type include_issuer_info: bool
+        :raises ValueError: If the Django user didn't have :py:attr:`email` set.
+        :raises AuthorizenetControllerExecutionError: If something went wrong during the API call.
+        :returns: The Authorizenet API response.
+        :rtype: ~lxml.objectify.ObjectifiedElement
+
+        """
+        if not user.email:
+            raise ValueError(f"'{user}' didn't have an email address.")
+        return self.execute(
+            api.get_customer_profile_by_email(
+                email=user.email, include_issuer_info=include_issuer_info
             )
         )
 
