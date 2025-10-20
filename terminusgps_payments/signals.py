@@ -5,10 +5,45 @@ from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
 )
 
+from terminusgps_payments.models import CustomerProfile
 from terminusgps_payments.services import AuthorizenetService
 
 logger = logging.getLogger(__name__)
 service = AuthorizenetService()
+
+
+def delete_address_profile_in_authorizenet(sender, **kwargs):
+    try:
+        if address_profile := kwargs.get("instance"):
+            if address_profile.pk and hasattr(
+                address_profile, "customer_profile"
+            ):
+                service.delete_address_profile(address_profile)
+    except (AuthorizenetControllerExecutionError, ValueError) as e:
+        logger.critical(e)
+        raise
+
+
+def delete_payment_profile_in_authorizenet(sender, **kwargs):
+    try:
+        if payment_profile := kwargs.get("instance"):
+            if payment_profile.pk and hasattr(
+                payment_profile, "customer_profile"
+            ):
+                service.delete_payment_profile(payment_profile)
+    except (AuthorizenetControllerExecutionError, ValueError) as e:
+        logger.critical(e)
+        raise
+
+
+def delete_customer_profile_in_authorizenet(sender, **kwargs):
+    try:
+        if customer_profile := kwargs.get("instance"):
+            if customer_profile.pk:
+                service.delete_customer_profile(customer_profile)
+    except (AuthorizenetControllerExecutionError, ValueError) as e:
+        logger.critical(e)
+        raise
 
 
 def hydrate_address_profile(sender, **kwargs):
@@ -61,3 +96,28 @@ def hydrate_subscription_status(sender, **kwargs):
     except (AuthorizenetControllerExecutionError, ValueError) as e:
         logger.critical(e)
         raise
+
+
+def get_or_create_customer_profile_for_user(sender, **kwargs):
+    try:
+        if user := kwargs.get("instance"):
+            if hasattr(user, "email") and not hasattr(
+                user, "customer_profile"
+            ):
+                try:
+                    anet_response = service.get_customer_profile_by_user(user)
+                    customer_profile = CustomerProfile(
+                        pk=anet_response.profile.customerProfileId, user=user
+                    )
+                    customer_profile.save()
+                except AuthorizenetControllerExecutionError as e:
+                    if e.code != "E00040":
+                        raise
+                    customer_profile = CustomerProfile(user=user)
+                    anet_response = service.create_customer_profile(
+                        customer_profile
+                    )
+                    customer_profile.pk = anet_response.customerProfileId
+                    customer_profile.save()
+    except (AuthorizenetControllerExecutionError, ValueError) as e:
+        logger.critical(e)
