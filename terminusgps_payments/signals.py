@@ -18,11 +18,20 @@ def delete_address_profile_in_authorizenet(sender, **kwargs):
             if address_profile.pk and hasattr(
                 address_profile, "customer_profile"
             ):
+                target_pk = address_profile.pk
+                logger.debug(
+                    f"Deleting Address Profile #{target_pk} in Authorizenet..."
+                )
                 service.delete_address_profile(address_profile)
+                logger.info(
+                    f"Successfully deleted Address Profile #{target_pk} in Authorizenet."
+                )
     except (AuthorizenetControllerExecutionError, ValueError) as e:
         if hasattr(e, "code"):
             if getattr(e, "code") == "E00040":
-                # Already gone in Authorizenet
+                logger.info(
+                    f"Address Profile #{target_pk} was already deleted in Authorizenet."
+                )
                 return
         logger.critical(e)
         raise
@@ -34,11 +43,20 @@ def delete_payment_profile_in_authorizenet(sender, **kwargs):
             if payment_profile.pk and hasattr(
                 payment_profile, "customer_profile"
             ):
+                target_pk = payment_profile.pk
+                logger.debug(
+                    f"Deleting Payment Profile #{target_pk} in Authorizenet..."
+                )
                 service.delete_payment_profile(payment_profile)
+                logger.info(
+                    f"Successfully deleted Payment Profile #{target_pk} in Authorizenet."
+                )
     except (AuthorizenetControllerExecutionError, ValueError) as e:
         if hasattr(e, "code"):
             if getattr(e, "code") == "E00040":
-                # Already gone in Authorizenet
+                logger.info(
+                    f"Payment Profile #{target_pk} was already deleted in Authorizenet."
+                )
                 return
         logger.critical(e)
         raise
@@ -65,8 +83,8 @@ def hydrate_address_profile(sender, **kwargs):
                 address_profile.pk is not None
                 and address_profile.address is None
             ):
-                anet_response = service.get_address_profile(address_profile)
-                address_profile.address = getattr(anet_response, "address")
+                resp = service.get_address_profile(address_profile)
+                address_profile.address = getattr(resp, "address")
                 address_profile.save(update_fields=["address"])
     except (AuthorizenetControllerExecutionError, ValueError) as e:
         logger.critical(e)
@@ -82,12 +100,12 @@ def hydrate_payment_profile(sender, **kwargs):
                     payment_profile.address is None,
                 ]
             ):
-                anet_response = service.get_payment_profile(payment_profile)
+                resp = service.get_payment_profile(payment_profile)
                 payment_profile.credit_card = getattr(
-                    anet_response.paymentProfile.payment, "creditCard"
+                    resp.paymentProfile.payment, "creditCard"
                 )
                 payment_profile.address = getattr(
-                    anet_response.paymentProfile, "billTo"
+                    resp.paymentProfile, "billTo"
                 )
                 payment_profile.save(update_fields=["credit_card", "address"])
     except (AuthorizenetControllerExecutionError, ValueError) as e:
@@ -102,8 +120,8 @@ def hydrate_subscription_status(sender, **kwargs):
                 subscription.pk is not None
                 and subscription.status == SubscriptionStatus.UNKNOWN
             ):
-                anet_response = service.get_subscription_status(subscription)
-                subscription.status = getattr(anet_response, "status")
+                resp = service.get_subscription_status(subscription)
+                subscription.status = getattr(resp, "status")
                 subscription.save(update_fields=["status"])
     except (AuthorizenetControllerExecutionError, ValueError) as e:
         logger.critical(e)
@@ -116,20 +134,19 @@ def get_or_create_customer_profile_for_user(sender, **kwargs):
             if hasattr(user, "email") and not hasattr(
                 user, "customer_profile"
             ):
+                customer_profile = CustomerProfile(user=user)
                 try:
-                    anet_response = service.get_customer_profile_by_user(user)
-                    customer_profile = CustomerProfile(
-                        pk=anet_response.profile.customerProfileId, user=user
-                    )
+                    resp = service.get_customer_profile_by_user(user)
+                    pk = int(getattr(resp.profile, "customerProfileId"))
+                    customer_profile.pk = pk
                     customer_profile.save()
                 except AuthorizenetControllerExecutionError as e:
                     if e.code != "E00040":
                         raise
-                    customer_profile = CustomerProfile(user=user)
-                    anet_response = service.create_customer_profile(
-                        customer_profile
-                    )
-                    customer_profile.pk = anet_response.customerProfileId
+                    resp = service.create_customer_profile(customer_profile)
+                    pk = int(getattr(resp, "customerProfileId"))
+                    customer_profile.pk = pk
                     customer_profile.save()
     except (AuthorizenetControllerExecutionError, ValueError) as e:
         logger.critical(e)
+        raise
