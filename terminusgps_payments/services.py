@@ -72,7 +72,7 @@ class AuthorizenetService(AuthorizenetServiceBase):
         """
         Returns the customer profile from Authorizenet.
 
-        :param user: A Django user with an email address attached.
+        :param user: A Django user with an email address username.
         :type user: ~django.contrib.auth.models.AbstractBaseUser
         :param include_issuer_info: Whether to include issuer info in the response. Default is :py:obj:`False`.
         :type include_issuer_info: bool
@@ -82,11 +82,9 @@ class AuthorizenetService(AuthorizenetServiceBase):
         :rtype: ~lxml.objectify.ObjectifiedElement
 
         """
-        if not user.email:
-            raise ValueError(f"'{user}' didn't have an email address.")
         return self.execute(
             api.get_customer_profile_by_email(
-                email=user.email, include_issuer_info=include_issuer_info
+                email=user.username, include_issuer_info=include_issuer_info
             )
         )
 
