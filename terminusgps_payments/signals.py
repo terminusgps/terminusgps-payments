@@ -135,25 +135,6 @@ def hydrate_payment_profile(sender, **kwargs):
         raise
 
 
-def hydrate_subscription_status(sender, **kwargs):
-    try:
-        if subscription := kwargs.get("instance"):
-            sub_pk = subscription.pk
-            if sub_pk is not None:
-                logger.info(
-                    f"Hydrating Subscription #{sub_pk} status with Authorizenet..."
-                )
-                resp = service.get_subscription_status(subscription)
-                subscription.status = getattr(resp, "status")
-                subscription.save(update_fields=["status"])
-                logger.info(
-                    f"Successfully hydrated Subscription #{sub_pk} status with Authorizenet."
-                )
-    except (AuthorizenetControllerExecutionError, ValueError) as e:
-        logger.critical(e)
-        raise
-
-
 def get_or_create_customer_profile_for_user(sender, **kwargs):
     try:
         if user := kwargs.get("instance"):
