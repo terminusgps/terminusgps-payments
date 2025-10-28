@@ -89,7 +89,7 @@ def hydrate_address_profile(sender, **kwargs):
     try:
         if address_profile := kwargs.get("instance"):
             profile_pk = address_profile.pk
-            if profile_pk is not None and address_profile.address is not None:
+            if profile_pk is not None and address_profile.address is None:
                 logger.info(
                     f"Hydrating AddressProfile #{profile_pk} with Authorizenet..."
                 )
