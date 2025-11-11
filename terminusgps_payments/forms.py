@@ -1,8 +1,33 @@
 from authorizenet import apicontractsv1
 from django import forms
+from django.conf import settings
 from django.utils import timezone
 
+from terminusgps_payments.models import Subscription
+
 __all__ = ["PaymentProfileCreationForm", "AddressProfileCreationForm"]
+
+WIDGET_CSS_CLASS = (
+    settings.WIDGET_CSS_CLASS
+    if hasattr(settings, "WIDGET_CSS_CLASS")
+    else "peer p-2 rounded border border-current bg-gray-50 dark:bg-gray-600 user-invalid:bg-red-50 user-invalid:text-red-600"
+)
+
+
+class PaymentProfileChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        if obj.credit_card is not None:
+            cc = obj.credit_card
+            return f"{cc.cardType} ending in {str(cc.cardNumber)[-4:]}"
+        return str(obj)
+
+
+class AddressProfileChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        if obj.address is not None:
+            addr = obj.address
+            return str(addr.address)
+        return str(obj)
 
 
 class AuthorizenetCustomerAddressWidget(forms.widgets.MultiWidget):
@@ -245,3 +270,21 @@ class AddressProfileCreationForm(forms.Form):
             attrs={"class": "accent-terminus-red-700 select-none"}
         ),
     )
+
+
+class SubscriptionUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Subscription
+        fields = ["payment_profile", "address_profile"]
+        field_classes = {
+            "payment_profile": PaymentProfileChoiceField,
+            "address_profile": AddressProfileChoiceField,
+        }
+        widgets = {
+            "payment_profile": forms.widgets.Select(
+                attrs={"class": WIDGET_CSS_CLASS}
+            ),
+            "address_profile": forms.widgets.Select(
+                attrs={"class": WIDGET_CSS_CLASS}
+            ),
+        }

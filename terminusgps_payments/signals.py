@@ -141,11 +141,11 @@ def get_or_create_customer_profile_for_user(sender, **kwargs):
             if hasattr(user, "email") and not hasattr(
                 user, "customer_profile"
             ):
-                logger.info(
-                    f"Getting/creating CustomerProfile for '{user}' from Authorizenet..."
-                )
-                customer_profile = CustomerProfile(user=user)
                 try:
+                    logger.info(
+                        f"Getting/creating CustomerProfile for '{user}' from Authorizenet..."
+                    )
+                    customer_profile = CustomerProfile(user=user)
                     resp = service.get_customer_profile_by_user(user)
                     pk = int(getattr(resp.profile, "customerProfileId"))
                     customer_profile.pk = pk

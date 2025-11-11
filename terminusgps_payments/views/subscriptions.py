@@ -13,6 +13,7 @@ from terminusgps.authorizenet.service import (
 )
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
+from terminusgps_payments.forms import SubscriptionUpdateForm
 from terminusgps_payments.models import (
     AddressProfile,
     PaymentProfile,
@@ -43,9 +44,9 @@ class SubscriptionUpdateView(
     LoginRequiredMixin, HtmxTemplateResponseMixin, UpdateView
 ):
     content_type = "text/html"
-    fields = ["payment_profile", "address_profile"]
     http_method_names = ["get", "post"]
     model = Subscription
+    form_class = SubscriptionUpdateForm
     partial_template_name = (
         "terminusgps_payments/subscriptions/partials/_update.html"
     )
@@ -68,6 +69,12 @@ class SubscriptionUpdateView(
         form.fields["payment_profile"].empty_label = None
         form.fields["address_profile"].queryset = address_qs
         form.fields["address_profile"].empty_label = None
+        form.fields["payment_profile"].widget.attrs = {
+            "class": "p-2 rounded border"
+        }
+        form.fields["address_profile"].widget.attrs = {
+            "class": "p-2 rounded border"
+        }
         return form
 
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
