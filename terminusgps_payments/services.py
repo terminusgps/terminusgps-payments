@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from authorizenet import apicontractsv1
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
@@ -526,4 +528,44 @@ class AuthorizenetService(AuthorizenetServiceBase):
             raise ValueError(f"'{subscription}' didn't have a pk.")
         return self.execute(
             api.cancel_subscription(subscription_id=subscription.pk)
+        )
+
+    def charge_customer_profile(
+        self,
+        customer_profile: models.CustomerProfile,
+        payment_profile: models.PaymentProfile,
+        amount: Decimal,
+        line_items: apicontractsv1.ArrayOfLineItem | None = None,
+    ) -> ObjectifiedElement:
+        """
+        Charges a customer profile in Authorizenet.
+
+        :param customer_profile: A customer profile.
+        :type customer_profile: ~terminusgps_payments.models.CustomerProfile
+        :param payment_profile: A payment profile.
+        :type payment_profile: ~terminusgps_payments.models.PaymentProfile
+        :param amount: An amount to charge the customer profile.
+        :type amount: ~decimal.Decimal
+        :param amount: An amount to charge the customer profile.
+        :type amount: ~decimal.Decimal
+        :param line_items: An array of line items. Default is :py:obj:`None`.
+        :type line_items: ~apicontractsv1.ArrayOfLineItem | None
+        :raises ValueError: If the customer profile didn't have :py:attr:`pk` set.
+        :raises ValueError: If the payment profile didn't have :py:attr:`pk` set.
+        :raises AuthorizenetControllerExecutionError: If something went wrong during the API call.
+        :returns: The Authorizenet API response.
+        :rtype: ~lxml.objectify.ObjectifiedElement
+
+        """
+        if not customer_profile.pk:
+            raise ValueError(f"'{customer_profile}' didn't have a pk.")
+        if not payment_profile.pk:
+            raise ValueError(f"'{payment_profile}' didn't have a pk.")
+        return self.execute(
+            api.charge_customer_profile(
+                customer_profile_id=customer_profile.pk,
+                payment_profile_id=payment_profile.pk,
+                amount=amount,
+                line_items=line_items,
+            )
         )
