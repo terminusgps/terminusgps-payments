@@ -1,3 +1,4 @@
+from authorizenet import apicontractsv1
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
@@ -33,20 +34,19 @@ class PaymentProfileCreateView(
     success_url = reverse_lazy("terminusgps_payments:list payment profile")
     template_name = "terminusgps_payments/payment_profiles/create.html"
 
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        super().setup(request, *args, **kwargs)
-        self.anet_service = AuthorizenetService()
-
     @transaction.atomic
     def form_valid(self, form: PaymentProfileCreationForm) -> HttpResponse:
+        anet_service = AuthorizenetService()
         customer_profile = CustomerProfile.objects.get(user=self.request.user)
         payment_profile = PaymentProfile(customer_profile=customer_profile)
 
         try:
-            anet_response = self.anet_service.create_payment_profile(
-                payment_profile,
+            anet_response = anet_service.create_payment_profile(
+                payment_profile=payment_profile,
+                payment=apicontractsv1.paymentType(
+                    creditCard=form.cleaned_data["credit_card"]
+                ),
                 address=form.cleaned_data["address"],
-                credit_card=form.cleaned_data["credit_card"],
                 default=form.cleaned_data["default"],
             )
             payment_profile.pk = int(anet_response.customerPaymentProfileId)

@@ -1,16 +1,17 @@
-<form class="flex flex-col gap-4" method="post" hx-post="{% url 'terminusgps_payments:create address profile' %}" hx-target="this">
+<form class="flex flex-col gap-4" method="post" hx-post="{% url 'terminusgps_payments:create address profile' %}" hx-target="this" novalidate>
     {% if form.non_field_errors %}<section id="errors" class="rounded border border-current bg-red-100 p-2 text-red-700 animate-jiggle">{{ form.non_field_errors }}</section>{% endif %}
     {% csrf_token %}
-    <div class="flex flex-col gap-2">
-        <label for="{{ form.address.id_for_label }}" class="font-semibold">Shipping Address</label>
+    <section class="flex flex-col gap-2 w-full">
         {{ form.address }}
-    </div>
-    <div class="flex flex-col gap-2 rounded border bg-gray-50 p-2">
-        <div class="flex items-center gap-4">
-            {{ form.default }}
-            <label for="{{ form.default.id_for_label }}">Set as default?</label>
-        </div>
-    </div>
+        <label class="order-first font-semibold peer-user-invalid:text-red-600" for="{{ form.address.id_for_label }}">{{ form.address.label }}</label>
+        <p class="text-sm peer-user-invalid:text-red-800" id="{{ form.address.id_for_label }}_helptext">{{ form.address.help_text }}</p>
+        {% if form.address.errors %}<div class="animate-jiggle font-italic">{{ form.address.errors }}</div>{% endif %}
+    </section>
+    <section class="flex gap-2 w-full items-center">
+        {{ form.default }}
+        <label class="font-semibold peer-user-invalid:text-red-600" for="{{ form.default.id_for_label }}">Set as default?</label>
+        {% if form.default.errors %}<div class="animate-jiggle font-italic">{{ form.default.errors }}</div>{% endif %}
+    </section>
     <section id="buttons" class="flex flex-col gap-2">
         <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-terminus-red-900 bg-terminus-red-800 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-terminus-red-400" type="submit">Save</button>
         <button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-gray-600 bg-gray-400 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-600" hx-get="{% url 'terminusgps_payments:list address profile' %}" hx-target="#address-profiles-list">Cancel</button>

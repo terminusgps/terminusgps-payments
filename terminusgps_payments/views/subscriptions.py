@@ -1,5 +1,6 @@
 from authorizenet import apicontractsv1
 from django import forms
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
@@ -20,6 +21,12 @@ from terminusgps_payments.models import (
     Subscription,
 )
 from terminusgps_payments.services import AuthorizenetService
+
+WIDGET_CSS_CLASS = (
+    settings.WIDGET_CSS_CLASS
+    if hasattr(settings, "WIDGET_CSS_CLASS")
+    else "peer p-2 rounded border border-current bg-gray-50 dark:bg-gray-600 user-invalid:bg-red-50 user-invalid:text-red-600 dark:placeholder:text-gray-200"
+)
 
 
 @method_decorator(cache_page(timeout=60 * 3), name="dispatch")
@@ -54,10 +61,6 @@ class SubscriptionUpdateView(
     pk_url_kwarg = "subscription_pk"
     template_name = "terminusgps_payments/subscriptions/update.html"
 
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        super().setup(request, *args, **kwargs)
-        self.anet_service = AuthorizenetService()
-
     def get_queryset(self) -> QuerySet:
         return Subscription.objects.for_user(self.request.user)
 
@@ -70,10 +73,10 @@ class SubscriptionUpdateView(
         form.fields["address_profile"].queryset = address_qs
         form.fields["address_profile"].empty_label = None
         form.fields["payment_profile"].widget.attrs = {
-            "class": "p-2 rounded border"
+            "class": WIDGET_CSS_CLASS
         }
         form.fields["address_profile"].widget.attrs = {
-            "class": "p-2 rounded border"
+            "class": WIDGET_CSS_CLASS
         }
         return form
 
@@ -93,7 +96,9 @@ class SubscriptionUpdateView(
                 anet_profile.customerProfileId = str(cprofile_pk)
                 anet_profile.customerPaymentProfileId = str(pprofile_pk)
                 anet_profile.customerAddressId = str(aprofile_pk)
-                self.anet_service.update_subscription(
+
+                anet_service = AuthorizenetService()
+                anet_service.update_subscription(
                     subscription,
                     apicontractsv1.ARBSubscriptionType(profile=anet_profile),
                 )

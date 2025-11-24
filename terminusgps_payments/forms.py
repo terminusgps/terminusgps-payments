@@ -10,7 +10,7 @@ __all__ = ["PaymentProfileCreationForm", "AddressProfileCreationForm"]
 WIDGET_CSS_CLASS = (
     settings.WIDGET_CSS_CLASS
     if hasattr(settings, "WIDGET_CSS_CLASS")
-    else "peer p-2 rounded border border-current bg-gray-50 dark:bg-gray-600 user-invalid:bg-red-50 user-invalid:text-red-600"
+    else "peer p-2 rounded border border-current bg-gray-50 dark:text-gray-100 dark:bg-gray-600 user-invalid:bg-red-50 user-invalid:text-red-600 dark:placeholder:text-gray-200"
 )
 
 
@@ -65,7 +65,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
             widgets={
                 "first_name": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "First",
                         "minlength": "1",
                         "maxlength": "24",
@@ -75,7 +75,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                 ),
                 "last_name": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "Last",
                         "minlength": "1",
                         "maxlength": "24",
@@ -85,7 +85,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                 ),
                 "phone_number": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "+17139045262",
                         "minlength": "12",
                         "maxlength": "16",
@@ -95,7 +95,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                 ),
                 "street": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "17610 South Dr",
                         "minlength": "4",
                         "maxlength": "64",
@@ -105,7 +105,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                 ),
                 "city": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "Cypress",
                         "minlength": "4",
                         "maxlength": "64",
@@ -115,7 +115,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                 ),
                 "state": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "Texas",
                         "minlength": "4",
                         "maxlength": "64",
@@ -125,7 +125,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                 ),
                 "zip": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "77433",
                         "minlength": "5",
                         "maxlength": "9",
@@ -135,7 +135,7 @@ class AuthorizenetCustomerAddressField(forms.MultiValueField):
                 ),
                 "country": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white w-full",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "USA",
                         "minlength": "3",
                         "maxlength": "64",
@@ -194,7 +194,7 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
             widgets={
                 "number": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white col-span-2",
+                        "class": WIDGET_CSS_CLASS + " col-span-2",
                         "placeholder": "4111111111111111",
                         "minlength": "16",
                         "maxlength": "19",
@@ -204,7 +204,7 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
                 ),
                 "expiry_month": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "MM",
                         "min": 1,
                         "max": 12,
@@ -216,7 +216,7 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
                 ),
                 "expiry_year": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white",
+                        "class": WIDGET_CSS_CLASS,
                         "placeholder": "YY",
                         "min": int(str(timezone.now().year)[-2:]),
                         "max": 99,
@@ -228,7 +228,7 @@ class AuthorizenetCreditCardField(forms.MultiValueField):
                 ),
                 "ccv": forms.widgets.TextInput(
                     attrs={
-                        "class": "p-2 rounded border bg-white col-span-2",
+                        "class": WIDGET_CSS_CLASS + " col-span-2",
                         "placeholder": "444",
                     }
                 ),

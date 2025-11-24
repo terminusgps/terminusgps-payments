@@ -268,8 +268,8 @@ class AuthorizenetService(AuthorizenetServiceBase):
     def create_payment_profile(
         self,
         payment_profile: models.PaymentProfile,
+        payment: apicontractsv1.paymentType,
         address: apicontractsv1.customerAddressType,
-        credit_card: apicontractsv1.creditCardType,
         default: bool,
     ) -> ObjectifiedElement:
         """
@@ -279,8 +279,6 @@ class AuthorizenetService(AuthorizenetServiceBase):
         :type payment_profile: ~terminusgps_payments.models.PaymentProfile
         :param address: A customer address.
         :type address: ~authorizenet.apicontractsv1.customerAddressType
-        :param credit_card: A credit card.
-        :type credit_card: ~authorizenet.apicontractsv1.creditCardType
         :param default: Whether to set the payment profile as default.
         :type default: bool
         :raises ValueError: If the payment profile had :py:attr:`pk` set.
@@ -301,7 +299,7 @@ class AuthorizenetService(AuthorizenetServiceBase):
         return self.execute(
             api.create_customer_payment_profile(
                 customer_profile_id=payment_profile.customer_profile.pk,
-                payment=apicontractsv1.paymentType(creditCard=credit_card),
+                payment=payment,
                 address=address,
                 default=default,
                 validation=settings.MERCHANT_AUTH_VALIDATION_MODE,
