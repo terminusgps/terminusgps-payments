@@ -119,11 +119,11 @@ wheels = [
 
 [[package]]
 name = "asgiref"
-version = "3.10.0"
+version = "3.11.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/46/08/4dfec9b90758a59acc6be32ac82e98d1fbfc321cb5cfa410436dbacf821c/asgiref-3.10.0.tar.gz", hash = "sha256:d89f2d8cd8b56dada7d52fa7dc8075baa08fb836560710d38c292a7a3f78c04e", size = 37483 }
+sdist = { url = "https://files.pythonhosted.org/packages/76/b9/4db2509eabd14b4a8c71d1b24c8d5734c52b8560a7b1e1a8b56c8d25568b/asgiref-3.11.0.tar.gz", hash = "sha256:13acff32519542a1736223fb79a715acdebe24286d98e8b164a73085f40da2c4", size = 37969 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/9c/fc2331f538fbf7eedba64b2052e99ccf9ba9d6888e2f41441ee28847004b/asgiref-3.10.0-py3-none-any.whl", hash = "sha256:aef8a81283a34d0ab31630c9b7dfe70c812c95eba78171367ca8745e88124734", size = 24050 },
+    { url = "https://files.pythonhosted.org/packages/91/be/317c2c55b8bbec407257d45f5c8d1b6867abc76d12043f2d3d58c538a4ea/asgiref-3.11.0-py3-none-any.whl", hash = "sha256:1db9021efadb0d9512ce8ffaf72fcef601c7b73a8807a1bb2ef143dc6b14846d", size = 24096 },
 ]
 
 [[package]]
@@ -148,11 +148,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/32/7f/0e26284cd5c86c5b4
 
 [[package]]
 name = "certifi"
-version = "2025.10.5"
+version = "2025.11.12"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4c/5b/b6ce21586237c77ce67d01dc5507039d444b630dd76611bbca2d8e5dcd91/certifi-2025.10.5.tar.gz", hash = "sha256:47c09d31ccf2acf0be3f701ea53595ee7e0b8fa08801c6624be771df09ae7b43", size = 164519 }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/8c/58f469717fa48465e4a50c014a0400602d3c437d7c0c468e17ada824da3a/certifi-2025.11.12.tar.gz", hash = "sha256:d8ab5478f2ecd78af242878415affce761ca6bc54a22a27e026d7c25357c3316", size = 160538 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/37/af0d2ef3967ac0d6113837b44a4f0bfe1328c2b9763bd5b1744520e5cfed/certifi-2025.10.5-py3-none-any.whl", hash = "sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de", size = 163286 },
+    { url = "https://files.pythonhosted.org/packages/70/7d/9bc192684cea499815ff478dfcdc13835ddf401365057044fb721ec6bddb/certifi-2025.11.12-py3-none-any.whl", hash = "sha256:97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b", size = 159438 },
 ]
 
 [[package]]
@@ -543,15 +543,15 @@ wheels = [
 
 [[package]]
 name = "psycopg"
-version = "3.2.12"
+version = "3.2.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/77/c72d10262b872617e509a0c60445afcc4ce2cd5cd6bc1c97700246d69c85/psycopg-3.2.12.tar.gz", hash = "sha256:85c08d6f6e2a897b16280e0ff6406bef29b1327c045db06d21f364d7cd5da90b", size = 160642 }
+sdist = { url = "https://files.pythonhosted.org/packages/44/05/d4a05988f15fcf90e0088c735b1f2fc04a30b7fc65461d6ec278f5f2f17a/psycopg-3.2.13.tar.gz", hash = "sha256:309adaeda61d44556046ec9a83a93f42bbe5310120b1995f3af49ab6d9f13c1d", size = 160626 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/28/8c4f90e415411dc9c78d6ba10b549baa324659907c13f64bfe3779d4066c/psycopg-3.2.12-py3-none-any.whl", hash = "sha256:8a1611a2d4c16ae37eada46438be9029a35bb959bb50b3d0e1e93c0f3d54c9ee", size = 206765 },
+    { url = "https://files.pythonhosted.org/packages/a9/14/f2724bd1986158a348316e86fdd0837a838b14a711df3f00e47fba597447/psycopg-3.2.13-py3-none-any.whl", hash = "sha256:a481374514f2da627157f767a9336705ebefe93ea7a0522a6cbacba165da179a", size = 206797 },
 ]
 
 [[package]]
@@ -601,7 +601,7 @@ wheels = [
 
 [[package]]
 name = "python-terminusgps"
-version = "49.1.0"
+version = "49.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authorizenet" },
@@ -609,9 +609,9 @@ dependencies = [
     { name = "py-aiowialon" },
     { name = "python-wialon" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2d/8b/9e9a81e0c237bc7a76959d327460ff1a199c51320efd315eee76025752c3/python_terminusgps-49.1.0.tar.gz", hash = "sha256:dfa0b78b358d92a84b4146fad4475200444d0b314f50ef610f46bae4530daaf0", size = 101962 }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/65/f4f63116cf9c086fd0b7710f87519313651d301b1b5c0a34dc605b3aaaa9/python_terminusgps-49.3.0.tar.gz", hash = "sha256:9b9a2d982d503d40dadf8120c517c3c0001d415d261c68b37278b927ffdbf6b0", size = 102227 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/e8/7fb5b97fb9d3a03c5fbc29011be83a4baa971d79a8a3a1effa5a456d6859/python_terminusgps-49.1.0-py3-none-any.whl", hash = "sha256:f6d076aeb81b2db34cbf23e5befa628721ba56df9554a7fabeb21c167752768f", size = 49906 },
+    { url = "https://files.pythonhosted.org/packages/65/bf/293933c9468cb38ead7f35e7c50cb57d0abac0e88895c6c25d525a43d0e3/python_terminusgps-49.3.0-py3-none-any.whl", hash = "sha256:67d193d9f5e6ab6cd031fb3c1febb9bd4eba4d4ebd1cb23a41e21c73f31ec147", size = 50126 },
 ]
 
 [[package]]
@@ -713,7 +713,7 @@ requires-dist = [
     { name = "django", specifier = ">=5.2.7" },
     { name = "django-encrypted-field", specifier = ">=1.0.5" },
     { name = "psycopg", specifier = ">=3.2.10" },
-    { name = "python-terminusgps", specifier = ">=49.1.0" },
+    { name = "python-terminusgps", specifier = ">=49.3.0" },
 ]
 
 [[package]]

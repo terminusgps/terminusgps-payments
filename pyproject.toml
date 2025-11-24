@@ -9,7 +9,7 @@ dependencies = [
     "django-encrypted-field>=1.0.5",
     "django>=5.2.7",
     "psycopg>=3.2.10",
-    "python-terminusgps>=49.1.0",
+    "python-terminusgps>=49.3.0",
 ]
 [build-system]
 requires = ["hatchling"]
