@@ -86,7 +86,7 @@ class AuthorizenetService(AuthorizenetServiceBase):
         """
         return self.execute(
             api.get_customer_profile_by_email(
-                email=user.username, include_issuer_info=include_issuer_info
+                email=user.email, include_issuer_info=include_issuer_info
             )
         )
 
