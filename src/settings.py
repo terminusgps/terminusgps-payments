@@ -38,8 +38,8 @@ SECRET_KEY = (
     "django-insecure-k_hy$%724=-h11l@^pur0$#crj0u!#w&68=i$)k9!jxb)yia0k"
 )
 STATIC_URL = "static/"
-TIME_ZONE = "UTC"
-USE_I18N = True
+TIME_ZONE = "US/Central"
+USE_I18N = False
 USE_TZ = True
 WSGI_APPLICATION = "src.wsgi.application"
 

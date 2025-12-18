@@ -1,191 +1,87 @@
-from authorizenet import apicontractsv1
-from django import forms
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
-from django.db import transaction
+import typing
+
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse
-from django.urls import reverse_lazy
-from django.utils.decorators import method_decorator
-from django.utils.translation import gettext_lazy as _
-from django.views.decorators.cache import cache_page
-from django.views.generic import DeleteView, DetailView, FormView, ListView
-from terminusgps.authorizenet.service import (
-    AuthorizenetControllerExecutionError,
-)
+from django.views.generic import CreateView, DetailView, ListView
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments.forms import PaymentProfileCreationForm
-from terminusgps_payments.models import CustomerProfile, PaymentProfile
-from terminusgps_payments.services import AuthorizenetService
+from .. import forms
+from ..models import CustomerPaymentProfile, CustomerProfile
 
 
-class PaymentProfileCreateView(
-    LoginRequiredMixin, HtmxTemplateResponseMixin, FormView
+class CustomerPaymentProfileCreditCardCreateView(
+    HtmxTemplateResponseMixin, CreateView
 ):
     content_type = "text/html"
-    form_class = PaymentProfileCreationForm
+    form_class = forms.CustomerPaymentProfileCreditCardCreateForm
     http_method_names = ["get", "post"]
-    partial_template_name = (
-        "terminusgps_payments/payment_profiles/partials/_create.html"
+    model = CustomerPaymentProfile
+    partial_template_name = "terminusgps_payments/payment_profiles/partials/_create_credit_card.html"
+    template_name = (
+        "terminusgps_payments/payment_profiles/create_credit_card.html"
     )
-    permission_denied_message = "Please login to view this content."
-    raise_exception = False
-    success_url = reverse_lazy("terminusgps_payments:list payment profile")
-    template_name = "terminusgps_payments/payment_profiles/create.html"
 
-    @transaction.atomic
-    def form_valid(self, form: PaymentProfileCreationForm) -> HttpResponse:
-        anet_service = AuthorizenetService()
-        customer_profile = CustomerProfile.objects.get(user=self.request.user)
-        payment_profile = PaymentProfile(customer_profile=customer_profile)
-
-        try:
-            anet_response = anet_service.create_payment_profile(
-                payment_profile=payment_profile,
-                payment=apicontractsv1.paymentType(
-                    creditCard=form.cleaned_data["credit_card"]
-                ),
-                address=form.cleaned_data["address"],
-                default=form.cleaned_data["default"],
-            )
-            payment_profile.pk = int(anet_response.customerPaymentProfileId)
-            payment_profile.save()
-            return HttpResponse(
-                status=200,
-                headers={
-                    "HX-Reselect": "#payment-profiles-list",
-                    "HX-Refresh": "true",
-                },
-            )
-        except AuthorizenetControllerExecutionError as e:
-            match e.code:
-                case "E00039":
-                    form.add_error(
-                        None,
-                        ValidationError(
-                            _(
-                                "Whoops! A payment method with a card ending in '%(last_4)s' already exists on your account."
-                            ),
-                            code="invalid",
-                            params={
-                                "last_4": str(
-                                    form.cleaned_data["credit_card"].cardNumber
-                                )[-4:]
-                            },
-                        ),
-                    )
-                case _:
-                    form.add_error(
-                        None,
-                        ValidationError(
-                            _("%(code)s: '%(message)s'"),
-                            code="invalid",
-                            params={"code": e.code, "message": e.message},
-                        ),
-                    )
-            return self.form_invalid(form=form)
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        context["customerprofile"] = CustomerProfile.objects.get(
+            pk=self.kwargs["customerprofile_pk"]
+        )
+        return context
 
 
-@method_decorator(cache_page(timeout=60 * 15), name="dispatch")
-class PaymentProfileDetailView(
-    LoginRequiredMixin, HtmxTemplateResponseMixin, DetailView
+class CustomerPaymentProfileBankAccountCreateView(
+    HtmxTemplateResponseMixin, CreateView
 ):
+    content_type = "text/html"
+    fields = ["default"]
+    http_method_names = ["get", "post"]
+    model = CustomerPaymentProfile
+    partial_template_name = "terminusgps_payments/payment_profiles/partials/_create_bank_account.html"
+    template_name = (
+        "terminusgps_payments/payment_profiles/create_bank_account.html"
+    )
+
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        context["customerprofile"] = CustomerProfile.objects.get(
+            pk=self.kwargs["customerprofile_pk"]
+        )
+        return context
+
+
+class CustomerPaymentProfileDetailView(HtmxTemplateResponseMixin, DetailView):
     content_type = "text/html"
     http_method_names = ["get"]
-    model = PaymentProfile
+    model = CustomerPaymentProfile
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_detail.html"
     )
-    permission_denied_message = "Please login to view this content."
-    pk_url_kwarg = "profile_pk"
-    raise_exception = False
+    pk_url_kwarg = "paymentprofile_pk"
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
     def get_queryset(self) -> QuerySet:
-        return PaymentProfile.objects.for_user(
-            self.request.user
-        ).select_related("customer_profile")
+        return self.model.objects.filter(
+            cprofile__pk=self.kwargs["customerprofile_pk"]
+        )
 
 
-class PaymentProfileDeleteView(
-    LoginRequiredMixin, HtmxTemplateResponseMixin, DeleteView
-):
-    content_type = "text/html"
-    http_method_names = ["get", "post"]
-    model = PaymentProfile
-    partial_template_name = (
-        "terminusgps_payments/payment_profiles/partials/_delete.html"
-    )
-    permission_denied_message = "Please login to view this content."
-    pk_url_kwarg = "profile_pk"
-    raise_exception = False
-    template_name = "terminusgps_payments/payment_profiles/delete.html"
-
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        super().setup(request, *args, **kwargs)
-        self.anet_service = AuthorizenetService()
-
-    def get_queryset(self) -> QuerySet:
-        return PaymentProfile.objects.for_user(
-            self.request.user
-        ).select_related("customer_profile")
-
-    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
-        try:
-            payment_profile = self.get_object()
-            self.anet_service.delete_payment_profile(payment_profile)
-            payment_profile.delete()
-            return HttpResponse(
-                status=200,
-                headers={
-                    "HX-Reselect": "#payment-profiles-list",
-                    "HX-Refresh": "true",
-                },
-            )
-        except AuthorizenetControllerExecutionError as e:
-            match e.code:
-                case "E00105":
-                    form.add_error(
-                        None,
-                        ValidationError(
-                            _(
-                                "Whoops! This payment method is currently associated with an active or suspended subscription. Nothing was deleted."
-                            ),
-                            code="invalid",
-                        ),
-                    )
-                case _:
-                    form.add_error(
-                        None,
-                        ValidationError(
-                            _("%(code)s: '%(message)s'"),
-                            code="invalid",
-                            params={"code": e.code, "message": e.message},
-                        ),
-                    )
-            return self.form_invalid(form=form)
-
-
-class PaymentProfileListView(
-    LoginRequiredMixin, HtmxTemplateResponseMixin, ListView
-):
-    allow_empty = True
+class CustomerPaymentProfileListView(HtmxTemplateResponseMixin, ListView):
     content_type = "text/html"
     http_method_names = ["get"]
-    model = PaymentProfile
+    model = CustomerPaymentProfile
     ordering = "pk"
-    paginate_by = 4
     partial_template_name = (
         "terminusgps_payments/payment_profiles/partials/_list.html"
     )
-    permission_denied_message = "Please login to view this content."
-    raise_exception = False
     template_name = "terminusgps_payments/payment_profiles/list.html"
 
     def get_queryset(self) -> QuerySet:
-        return (
-            PaymentProfile.objects.for_user(self.request.user)
-            .select_related("customer_profile")
-            .order_by(self.get_ordering())
+        return self.model.objects.filter(
+            cprofile__pk=self.kwargs["customerprofile_pk"]
+        ).order_by(self.get_ordering())
+
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        context["customerprofile"] = CustomerProfile.objects.get(
+            pk=self.kwargs["customerprofile_pk"]
         )
+        return context

@@ -1,22 +1,23 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import QuerySet
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.views.generic import DetailView
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import models
+from ..models import CustomerProfile
 
 
 class CustomerProfileDetailView(
-    LoginRequiredMixin, HtmxTemplateResponseMixin, DetailView
+    UserPassesTestMixin, HtmxTemplateResponseMixin, DetailView
 ):
     content_type = "text/html"
-    http_method_names = ["get"]
-    model = models.CustomerProfile
+    model = CustomerProfile
     partial_template_name = (
         "terminusgps_payments/customer_profiles/partials/_detail.html"
     )
-    pk_url_kwarg = "profile_pk"
+    pk_url_kwarg = "customerprofile_pk"
     template_name = "terminusgps_payments/customer_profiles/detail.html"
 
-    def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(user=self.request.user)
+    def test_func(self):
+        return (
+            self.request.user.is_staff
+            or self.get_object().user.pk == self.request.user.pk
+        )

@@ -1,12 +1,1 @@
-{% if addressprofile.address != None %}
-{% with addressprofile.address as address %}
-<section id="address">
-    <div id="full_name" class="text-gray-800">{{ address.firstName }} {{ address.lastName }}</div>
-    <div id="street" class="text-gray-800">{{ address.address }}</div>
-    <div id="city_state_country_zip" class="text-gray-700">{{ address.city }}, {{ address.state }}, {{ address.country }} {{ address.zip }}</div>
-</section>
-{% endwith %}
-{% endif %}
-<form hx-get="{% url 'terminusgps_payments:delete address profile' addressprofile.pk %}" hx-swap="outerHTML" hx-target="this" hx-trigger="load">
-    <button class="w-full cursor-progress rounded border border-current bg-gray-50 p-2 text-red-600 transition-colors duration-300 ease-in-out hover:bg-red-50" disabled>Delete</button>
-</form>
+{{ addressprofile.pk }}

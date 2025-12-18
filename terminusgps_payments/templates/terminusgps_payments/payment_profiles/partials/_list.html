@@ -1,6 +1,16 @@
-{% for paymentprofile in paymentprofile_list %}
-<section id="{{ paymentprofile.pk }}" class="flex flex-col gap-4 rounded border bg-gray-100 p-4 drop-shadow" hx-get="{{ paymentprofile.get_absolute_url }}" hx-target="this" hx-trigger="load"></section>
+{% for profile in object_list %}
+<div id="{{ profile.pk }}" class="p-4 border">
+    <h3>{{ profile.address.firstName }} {{ profile.address.lastName }}</h3>
+    <p>{{ profile.address.address }}</p>
+</div>
 {% empty %}
-<p>You don't have any payment profiles.</p>
+<p>You don't have any payment profiles yet.</p>
 {% endfor %}
-<button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded border border-terminus-red-900 bg-terminus-red-800 p-2 text-center text-white transition-colors duration-300 ease-in-out hover:bg-terminus-red-400" hx-get="{% url 'terminusgps_payments:create payment profile' %}" hx-target="#payment-profiles-list">New Payment Method</button>
+<button
+    id="create-button"
+    hx-get="{% url 'terminusgps_payments:create credit card payment profiles' customerprofile.pk %}"
+    hx-target="#payment-profiles"
+    hx-trigger="click"
+>
+    <p>Create Payment Profile</p>
+</button>

@@ -1,290 +1,252 @@
+import datetime
+
 from authorizenet import apicontractsv1
 from django import forms
-from django.conf import settings
-from django.utils import timezone
-
-from terminusgps_payments.models import Subscription
-
-__all__ = ["PaymentProfileCreationForm", "AddressProfileCreationForm"]
-
-WIDGET_CSS_CLASS = (
-    settings.WIDGET_CSS_CLASS
-    if hasattr(settings, "WIDGET_CSS_CLASS")
-    else "peer p-2 rounded border border-current bg-gray-50 dark:text-gray-100 dark:bg-gray-600 user-invalid:bg-red-50 user-invalid:text-red-600 dark:placeholder:text-gray-200"
-)
+from django.utils.translation import gettext_lazy as _
+from terminusgps.authorizenet.constants import BankAccountType
 
 
-class PaymentProfileChoiceField(forms.ModelChoiceField):
-    def label_from_instance(self, obj):
-        if obj.credit_card is not None:
-            cc = obj.credit_card
-            return f"{cc.cardType} ending in {str(cc.cardNumber)[-4:]}"
-        return str(obj)
+class AddressField(forms.MultiValueField):
+    def __init__(self, *args, **kwargs) -> None:
+        fields = (
+            forms.CharField(
+                label=_("First Name"),
+                max_length=50,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "First"}
+                ),
+            ),
+            forms.CharField(
+                label=_("Last Name"),
+                max_length=50,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "Last"}
+                ),
+            ),
+            forms.CharField(
+                label=_("Street"),
+                max_length=60,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "17610 South Dr"}
+                ),
+            ),
+            forms.CharField(
+                label=_("City"),
+                max_length=40,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "Cypress"}
+                ),
+            ),
+            forms.CharField(
+                label=_("State"),
+                max_length=50,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "Texas"}
+                ),
+            ),
+            forms.CharField(
+                label=_("Country"),
+                max_length=60,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "USA"}
+                ),
+            ),
+            forms.CharField(
+                label=_("ZIP #"),
+                max_length=20,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "77433"}
+                ),
+            ),
+            forms.CharField(
+                label=_("Phone #"),
+                max_length=25,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "+17139045262"}
+                ),
+            ),
+        )
+        super().__init__(fields=fields, *args, **kwargs)
 
-
-class AddressProfileChoiceField(forms.ModelChoiceField):
-    def label_from_instance(self, obj):
-        if obj.address is not None:
-            addr = obj.address
-            return str(addr.address)
-        return str(obj)
-
-
-class AuthorizenetCustomerAddressWidget(forms.widgets.MultiWidget):
-    template_name = "terminusgps_payments/widgets/address.html"
-
-    def decompress(self, value) -> list[str | None]:
-        if value:
-            return [
-                str(value.firstName),
-                str(value.lastName),
-                str(value.phoneNumber),
-                str(value.address),
-                str(value.city),
-                str(value.state),
-                str(value.zip),
-                str(value.country),
-            ]
+    def compress(self, data_list):
+        if all(data_list):
+            addr = apicontractsv1.customerAddressType()
+            addr.firstName = str(data_list[0])
+            addr.lastName = str(data_list[1])
+            addr.address = str(data_list[2])
+            addr.city = str(data_list[3])
+            addr.state = str(data_list[4])
+            addr.country = str(data_list[5])
+            addr.zip = str(data_list[6])
+            addr.phoneNumber = str(data_list[7])
         return [None, None, None, None, None, None, None, None]
 
 
-class AuthorizenetCustomerAddressField(forms.MultiValueField):
-    def __init__(self, **kwargs) -> None:
-        error_messages = {}
+class AddressWidget(forms.MultiWidget):
+    template_name = "terminusgps_payments/widgets/address.html"
+
+    def decompress(self, value):
+        if value is None:
+            return None
+        return [
+            str(value.firstName),
+            str(value.lastName),
+            str(value.address),
+            str(value.city),
+            str(value.state),
+            str(value.country),
+            str(value.zip),
+            str(value.phoneNumber),
+        ]
+
+
+class BankAccountField(forms.MultiValueField):
+    def __init__(self, *args, **kwargs) -> None:
         fields = (
-            forms.CharField(label="First Name"),
-            forms.CharField(label="Last Name"),
-            forms.CharField(label="Phone #"),
-            forms.CharField(label="Street"),
-            forms.CharField(label="City"),
-            forms.CharField(label="State"),
-            forms.CharField(label="Zip #"),
-            forms.CharField(label="Country"),
+            forms.ChoiceField(
+                label=_("Account Type"),
+                choices=BankAccountType.choices,
+                initial=BankAccountType.CHECKING,
+                widget=forms.widgets.Select(attrs={"class": "peer"}),
+            ),
+            forms.CharField(
+                label=_("Routing #"),
+                max_length=9,
+                widget=forms.widgets.NumberInput(
+                    attrs={"class": "peer", "placeholder": "X" * 9}
+                ),
+            ),
+            forms.CharField(
+                label=_("Account #"),
+                max_length=17,
+                widget=forms.widgets.NumberInput(
+                    attrs={"class": "peer", "placeholder": "X" * 17}
+                ),
+            ),
+            forms.CharField(
+                label=_("Account Name"),
+                max_length=22,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "Terminus GPS"}
+                ),
+            ),
+            forms.CharField(
+                label=_("Bank Name"),
+                max_length=50,
+                widget=forms.widgets.TextInput(
+                    attrs={"class": "peer", "placeholder": "Wells Fargo"}
+                ),
+            ),
         )
-        widget = AuthorizenetCustomerAddressWidget(
-            widgets={
-                "first_name": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "First",
-                        "minlength": "1",
-                        "maxlength": "24",
-                        "inputmode": "text",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "last_name": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "Last",
-                        "minlength": "1",
-                        "maxlength": "24",
-                        "inputmode": "text",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "phone_number": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "+17139045262",
-                        "minlength": "12",
-                        "maxlength": "16",
-                        "inputmode": "tel",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "street": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "17610 South Dr",
-                        "minlength": "4",
-                        "maxlength": "64",
-                        "inputmode": "text",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "city": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "Cypress",
-                        "minlength": "4",
-                        "maxlength": "64",
-                        "inputmode": "text",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "state": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "Texas",
-                        "minlength": "4",
-                        "maxlength": "64",
-                        "inputmode": "text",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "zip": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "77433",
-                        "minlength": "5",
-                        "maxlength": "9",
-                        "inputmode": "numeric",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "country": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "USA",
-                        "minlength": "3",
-                        "maxlength": "64",
-                        "inputmode": "text",
-                        "enterkeyhint": "done",
-                    }
-                ),
-            }
-        )
-        super().__init__(
-            error_messages=error_messages,
-            fields=fields,
-            widget=widget,
-            require_all_fields=True,
-            **kwargs,
-        )
+        super().__init__(fields=fields, *args, **kwargs)
 
-    def compress(self, data_list) -> apicontractsv1.customerAddressType:
-        return apicontractsv1.customerAddressType(
-            firstName=data_list[0],
-            lastName=data_list[1],
-            phoneNumber=data_list[2],
-            address=data_list[3],
-            city=data_list[4],
-            state=data_list[5],
-            zip=data_list[6],
-            country=data_list[7],
-        )
+    def compress(self, data_list):
+        if all(data_list):
+            ba = apicontractsv1.bankAccountType()
+            ba.accountType = str(data_list[0])
+            ba.routingNumber = str(data_list[1])
+            ba.accountNumber = str(data_list[2])
+            ba.nameOnAccount = str(data_list[3])
+            ba.bankName = str(data_list[4])
+            ba.echeckType = "PPD"
+            return ba
+        return
 
 
-class AuthorizenetCreditCardWidget(forms.widgets.MultiWidget):
+class BankAccountWidget(forms.widgets.MultiWidget):
+    template_name = "terminusgps_payments/widgets/bank_account.html"
+
+    def decompress(self, value):
+        if value:
+            return [
+                str(value.accountType),
+                str(value.routingNumber),
+                str(value.accountNumber),
+                str(value.nameOnAccount),
+                str(value.bankName),
+            ]
+        return [None, None, None, None, None]
+
+
+class CreditCardField(forms.MultiValueField):
+    def __init__(self, *args, **kwargs) -> None:
+        fields = (
+            forms.CharField(
+                label=_("Card #"),
+                max_length=19,
+                min_length=15,
+                widget=forms.widgets.NumberInput(
+                    attrs={"class": "peer", "placeholder": "X" * 16}
+                ),
+            ),
+            forms.DateField(
+                input_formats=["%m", "%-m"],
+                label=_("Expiration Month"),
+                widget=forms.widgets.NumberInput(
+                    attrs={"class": "peer", "placeholder": "MM"}
+                ),
+            ),
+            forms.DateField(
+                input_formats=["%y"],
+                label=_("Expiration Year"),
+                widget=forms.widgets.NumberInput(
+                    attrs={"class": "peer", "placeholder": "YY"}
+                ),
+            ),
+            forms.CharField(
+                label=_("CCV #"),
+                max_length=4,
+                min_length=3,
+                widget=forms.widgets.NumberInput(
+                    attrs={"class": "peer", "placeholder": "X" * 3}
+                ),
+            ),
+        )
+        super().__init__(fields=fields, *args, **kwargs)
+
+    def compress(self, data_list):
+        if all(data_list):
+            expiry = datetime.date(
+                month=data_list[1], year=data_list[2], day=1
+            )
+
+            cc = apicontractsv1.creditCardType()
+            cc.cardNumber = str(data_list[0])
+            cc.cardCode = str(data_list[3])
+            cc.expirationDate = expiry.strftime("%Y-%m")
+            return cc
+        return
+
+
+class CreditCardWidget(forms.widgets.MultiWidget):
     template_name = "terminusgps_payments/widgets/credit_card.html"
 
-    def decompress(self, value) -> list[str | None]:
+    def decompress(self, value):
         if value:
-            year, month = str(value.expirationDate).split("-")
+            expiry = datetime.datetime.strptime(
+                str(value.expirationDate), "%Y-%m"
+            )
             return [
                 str(value.cardNumber),
-                month,
-                year[-2:],
+                expiry.strftime("%m"),
+                expiry.strftime("%y"),
                 str(value.cardCode),
             ]
         return [None, None, None, None]
 
 
-class AuthorizenetCreditCardField(forms.MultiValueField):
-    def __init__(self, **kwargs) -> None:
-        error_messages = {}
-        fields = (
-            forms.CharField(label="Card #"),
-            forms.IntegerField(label="Expiry Month"),
-            forms.IntegerField(label="Expiry Year"),
-            forms.CharField(label="CCV #"),
-        )
-        widget = AuthorizenetCreditCardWidget(
-            widgets={
-                "number": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS + " col-span-2",
-                        "placeholder": "4111111111111111",
-                        "minlength": "16",
-                        "maxlength": "19",
-                        "inputmode": "numeric",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "expiry_month": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "MM",
-                        "min": 1,
-                        "max": 12,
-                        "minlength": "2",
-                        "maxlength": "2",
-                        "inputmode": "numeric",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "expiry_year": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS,
-                        "placeholder": "YY",
-                        "min": int(str(timezone.now().year)[-2:]),
-                        "max": 99,
-                        "minlength": "2",
-                        "maxlength": "2",
-                        "inputmode": "numeric",
-                        "enterkeyhint": "next",
-                    }
-                ),
-                "ccv": forms.widgets.TextInput(
-                    attrs={
-                        "class": WIDGET_CSS_CLASS + " col-span-2",
-                        "placeholder": "444",
-                    }
-                ),
-            }
-        )
+class CustomerPaymentProfileCreditCardCreateForm(forms.Form):
+    def __init__(self, *args, **kwargs) -> None:
+        if "instance" in kwargs:
+            kwargs.pop("instance")
+        super().__init__(*args, **kwargs)
 
-        super().__init__(
-            error_messages=error_messages,
-            fields=fields,
-            widget=widget,
-            require_all_fields=True,
-            **kwargs,
-        )
-
-    def compress(self, data_list) -> apicontractsv1.creditCardType:
-        return apicontractsv1.creditCardType(
-            cardNumber=data_list[0],
-            expirationDate=f"{data_list[2] + 2000}-{data_list[1]:02}",
-            cardCode=data_list[3],
-        )
+    credit_card = CreditCardField()
+    address = AddressField()
+    default = forms.BooleanField(initial=True)
 
 
-class PaymentProfileCreationForm(forms.Form):
-    address = AuthorizenetCustomerAddressField()
-    credit_card = AuthorizenetCreditCardField()
-    default = forms.BooleanField(
-        initial=True,
-        widget=forms.widgets.CheckboxInput(
-            attrs={"class": "accent-terminus-red-700 select-none"}
-        ),
-    )
-
-
-class AddressProfileCreationForm(forms.Form):
-    address = AuthorizenetCustomerAddressField()
-    default = forms.BooleanField(
-        initial=True,
-        widget=forms.widgets.CheckboxInput(
-            attrs={"class": "accent-terminus-red-700 select-none"}
-        ),
-    )
-
-
-class SubscriptionUpdateForm(forms.ModelForm):
-    class Meta:
-        model = Subscription
-        fields = ["payment_profile", "address_profile"]
-        field_classes = {
-            "payment_profile": PaymentProfileChoiceField,
-            "address_profile": AddressProfileChoiceField,
-        }
-        widgets = {
-            "payment_profile": forms.widgets.Select(
-                attrs={"class": WIDGET_CSS_CLASS}
-            ),
-            "address_profile": forms.widgets.Select(
-                attrs={"class": WIDGET_CSS_CLASS}
-            ),
-        }
+class CustomerPaymentProfileBankAccountCreateForm(forms.Form):
+    bank_account = BankAccountField()
+    address = AddressField()
+    default = forms.BooleanField(initial=True)

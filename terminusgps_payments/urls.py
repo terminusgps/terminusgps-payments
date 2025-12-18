@@ -3,71 +3,45 @@ from django.urls import path
 from . import views
 
 app_name = "terminusgps_payments"
-
 urlpatterns = [
     path(
-        "customers/<int:profile_pk>/detail/",
+        "customer-profiles/<int:customerprofile_pk>/",
         views.CustomerProfileDetailView.as_view(),
-        name="detail customer profile",
+        name="detail customer profiles",
     ),
     path(
-        "subscriptions/list/",
-        views.SubscriptionListView.as_view(),
-        name="list subscription",
+        "address-profiles/<int:customerprofile_pk>/list/",
+        views.CustomerAddressProfileListView.as_view(),
+        name="list address profiles",
     ),
     path(
-        "subscriptions/<int:subscription_pk>/detail/",
-        views.SubscriptionDetailView.as_view(),
-        name="detail subscription",
+        "address-profiles/<int:customerprofile_pk>/create/",
+        views.CustomerAddressProfileCreateView.as_view(),
+        name="create address profiles",
     ),
     path(
-        "subscriptions/<int:subscription_pk>/update/",
-        views.SubscriptionUpdateView.as_view(),
-        name="update subscription",
+        "address-profiles/<int:customerprofile_pk>/<int:addressprofile_pk>/",
+        views.CustomerAddressProfileDetailView.as_view(),
+        name="detail address profiles",
     ),
     path(
-        "subscriptions/<int:subscription_pk>/delete/",
-        views.SubscriptionDeleteView.as_view(),
-        name="delete subscription",
+        "payment-profiles/<int:customerprofile_pk>/list/",
+        views.CustomerPaymentProfileListView.as_view(),
+        name="list payment profiles",
     ),
     path(
-        "payments/create/",
-        views.PaymentProfileCreateView.as_view(),
-        name="create payment profile",
+        "payment-profiles/<int:customerprofile_pk>/create/bank-account/",
+        views.CustomerPaymentProfileBankAccountCreateView.as_view(),
+        name="create bank account payment profiles",
     ),
     path(
-        "payments/list/",
-        views.PaymentProfileListView.as_view(),
-        name="list payment profile",
+        "payment-profiles/<int:customerprofile_pk>/create/credit-card/",
+        views.CustomerPaymentProfileCreditCardCreateView.as_view(),
+        name="create credit card payment profiles",
     ),
     path(
-        "payments/<int:profile_pk>/detail/",
-        views.PaymentProfileDetailView.as_view(),
-        name="detail payment profile",
-    ),
-    path(
-        "payments/<int:profile_pk>/delete/",
-        views.PaymentProfileDeleteView.as_view(),
-        name="delete payment profile",
-    ),
-    path(
-        "addresses/create/",
-        views.AddressProfileCreateView.as_view(),
-        name="create address profile",
-    ),
-    path(
-        "addresses/list/",
-        views.AddressProfileListView.as_view(),
-        name="list address profile",
-    ),
-    path(
-        "addresses/<int:profile_pk>/detail/",
-        views.AddressProfileDetailView.as_view(),
-        name="detail address profile",
-    ),
-    path(
-        "addresses/<int:profile_pk>/delete/",
-        views.AddressProfileDeleteView.as_view(),
-        name="delete address profile",
+        "payment-profiles/<int:customerprofile_pk>/<int:paymentprofile_pk>/",
+        views.CustomerPaymentProfileDetailView.as_view(),
+        name="detail payment profiles",
     ),
 ]
