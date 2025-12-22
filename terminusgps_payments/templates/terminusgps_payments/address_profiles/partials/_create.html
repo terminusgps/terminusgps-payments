@@ -1,6 +1,7 @@
-<form id="create-address-profile-form">
-  {{ form }}
-  <button type="submit">Submit</button>
+<form hx-target="this" hx-post="{% url 'terminusgps_payments:create address profiles' customerprofile.pk %}">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Submit</button>
 </form>
 <button
   type="button"

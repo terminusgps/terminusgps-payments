@@ -30,14 +30,9 @@ urlpatterns = [
         name="list payment profiles",
     ),
     path(
-        "payment-profiles/<int:customerprofile_pk>/create/bank-account/",
-        views.CustomerPaymentProfileBankAccountCreateView.as_view(),
-        name="create bank account payment profiles",
-    ),
-    path(
-        "payment-profiles/<int:customerprofile_pk>/create/credit-card/",
-        views.CustomerPaymentProfileCreditCardCreateView.as_view(),
-        name="create credit card payment profiles",
+        "payment-profiles/<int:customerprofile_pk>/create/",
+        views.CustomerPaymentProfileCreateView.as_view(),
+        name="create payment profiles",
     ),
     path(
         "payment-profiles/<int:customerprofile_pk>/<int:paymentprofile_pk>/",

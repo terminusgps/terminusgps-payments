@@ -1,21 +1,35 @@
 import typing
 
+from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
-from django.views.generic import CreateView, DeleteView, DetailView, ListView
+from django.forms import Form
+from django.http import HttpResponse
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
+from django.views.generic import DeleteView, DetailView, FormView, ListView
+from terminusgps.authorizenet.service import (
+    AuthorizenetControllerExecutionError,
+)
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
+from ..forms import CustomerAddressProfileCreateForm
 from ..models import CustomerAddressProfile, CustomerProfile
 
 
-class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, CreateView):
+class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, FormView):
     content_type = "text/html"
-    fields = ["default"]
+    form_class = CustomerAddressProfileCreateForm
     http_method_names = ["get", "post"]
-    model = CustomerAddressProfile
     partial_template_name = (
         "terminusgps_payments/address_profiles/partials/_create.html"
     )
     template_name = "terminusgps_payments/address_profiles/create.html"
+
+    def get_success_url(self) -> str:
+        return reverse(
+            "terminusgps_payments:list address profiles",
+            kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
+        )
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context: dict[str, typing.Any] = super().get_context_data(**kwargs)
@@ -23,6 +37,40 @@ class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, CreateView):
             pk=self.kwargs["customerprofile_pk"]
         )
         return context
+
+    def form_valid(self, form: Form) -> HttpResponse:
+        try:
+            cprofile = CustomerProfile.objects.get(
+                pk=self.kwargs["customerprofile_pk"]
+            )
+            aprofile = CustomerAddressProfile(cprofile=cprofile)
+            aprofile.address = form.cleaned_data["address"]
+            aprofile.default = form.cleaned_data["default"]
+            aprofile.save()
+            return super().form_valid(form=form)
+        except CustomerProfile.DoesNotExist:
+            form.add_error(
+                None,
+                ValidationError(
+                    _(
+                        "Whoops! Something went wrong on our end, please try again later."
+                    ),
+                    code="invalid",
+                ),
+            )
+            return self.form_invalid(form=form)
+        except AuthorizenetControllerExecutionError as error:
+            match error.code:
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _("Whoops! %(error)s"),
+                            code="invalid",
+                            params={"error": error},
+                        ),
+                    )
+            return self.form_invalid(form=form)
 
 
 class CustomerAddressProfileListView(HtmxTemplateResponseMixin, ListView):

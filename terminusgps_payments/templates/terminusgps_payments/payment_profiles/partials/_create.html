@@ -1,0 +1,18 @@
+<form hx-target="this" hx-post="{% url 'terminusgps_payments:create payment profiles' customerprofile.pk %}">
+    <label for="id_form">Payment Type:</label>
+    <select class="p-2 rounded border" name="form" id="id_form" hx-get="{% url 'terminusgps_payments:create payment profiles' customerprofile.pk %}" hx-include="this" hx-target="#payment-profiles">
+        <option value="credit-card" {% if 'form=credit-card' in request.META.QUERY_STRING %}selected{% endif %}>Credit Card</option>
+        <option value="bank-account" {% if 'form=bank-account' in request.META.QUERY_STRING %}selected{% endif %}>Bank Account</option>
+    </select>
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Submit</button>
+</form>
+<button
+  type="button"
+  hx-target="#payment-profiles"
+  hx-get="{% url 'terminusgps_payments:list payment profiles' customerprofile.pk %}"
+  hx-trigger="click"
+>
+  <p>Cancel</p>
+</button>

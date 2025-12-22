@@ -1,1 +1,5 @@
-{% for subwidget in widget.subwidgets %}{% include widget.template_name with widget=subwidget %}{% endfor %}
+<div class="grid grid-cols-4 gap-2 *:p-2 *:border *:rounded">
+    {% for subwidget in widget.subwidgets %}
+        {% include subwidget.template_name with widget=subwidget %}
+    {% endfor %}
+</div>

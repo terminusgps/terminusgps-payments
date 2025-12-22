@@ -8,7 +8,7 @@
 {% endfor %}
 <button
     id="create-button"
-    hx-get="{% url 'terminusgps_payments:create credit card payment profiles' customerprofile.pk %}"
+    hx-get="{% url 'terminusgps_payments:create payment profiles' customerprofile.pk %}{% querystring form='credit-card' %}"
     hx-target="#payment-profiles"
     hx-trigger="click"
 >
