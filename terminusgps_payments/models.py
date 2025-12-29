@@ -1,15 +1,15 @@
+import abc
 import datetime
 import decimal
 import logging
+import typing
 
 from authorizenet import apicontractsv1
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.urls import reverse
-from django.utils.dateparse import parse_date
-from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
@@ -19,35 +19,79 @@ from terminusgps.authorizenet.service import (
 logger = logging.getLogger(__name__)
 
 
-class CustomerProfile(models.Model):
+class AuthorizenetModel(models.Model):
     id = models.PositiveBigIntegerField(
         primary_key=True, blank=True, editable=False
     )
-    """Authorizenet customer profile id."""
-    desc = models.TextField(
-        max_length=1024, blank=True, verbose_name=_("description")
-    )
-    """Authorizenet customer profile description."""
+    """Authorizenet object id."""
 
+    class Meta:
+        abstract = True
+
+    def delete(self, *args, **kwargs):
+        """Deletes the object in Authorizenet before deleting."""
+        if not self.pk:
+            return super().delete(*args, **kwargs)
+        service = AuthorizenetService()
+        self.delete_in_authorizenet(service)
+        return super().delete(*args, **kwargs)
+
+    @abc.abstractmethod
+    def create_in_authorizenet(
+        self, service: AuthorizenetService, **kwargs
+    ) -> int:
+        """Tries to create the object in Authorizenet and returns its id."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abc.abstractmethod
+    def get_from_authorizenet(
+        self, service: AuthorizenetService, **kwargs
+    ) -> ObjectifiedElement:
+        """Tries to retrieve fresh object data from Authorizenet and returns it."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abc.abstractmethod
+    def update_in_authorizenet(
+        self,
+        service: AuthorizenetService,
+        update_fields: list[str] | None = None,
+        **kwargs,
+    ) -> None:
+        """Tries to update the object in Authorizenet."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abc.abstractmethod
+    def delete_in_authorizenet(
+        self, service: AuthorizenetService, **kwargs
+    ) -> None:
+        """Tries to delete the object in Authorizenet."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+
+class CustomerProfile(AuthorizenetModel):
     user = models.OneToOneField(
         get_user_model(),
         on_delete=models.CASCADE,
         related_name="customer_profile",
     )
-    """Associated Django user."""
+    """Django user."""
+    desc = models.TextField(
+        max_length=1024, blank=True, verbose_name=_("description")
+    )
+    """Customer profile description."""
 
     class Meta:
         verbose_name = _("customer profile")
         verbose_name_plural = _("customer profiles")
 
     def __str__(self) -> str:
-        return f"{self.user}'s Customer Profile"
+        return f"{self.user}'s Profile"
 
-    @cached_property
+    @property
     def merchant_id(self) -> str:
         return str(self.user.pk)
 
-    @cached_property
+    @property
     def email(self) -> str:
         return str(self.user.email)
 
@@ -59,26 +103,17 @@ class CustomerProfile(models.Model):
         )
 
     def save(self, **kwargs) -> None:
-        """Creates/updates the customer profile in Authorizenet before saving."""
+        """Creates or updates the customer profile in Authorizenet before saving."""
+        service = AuthorizenetService()
         if not self.pk:
-            anet_service = AuthorizenetService()
-            self.id = self._create_in_authorizenet(anet_service)
-            return super().save(**kwargs)
-
-        anet_service = AuthorizenetService()
-        self._update_in_authorizenet(anet_service)
+            self.id = self.create_in_authorizenet(service)
+        self.update_in_authorizenet(service, kwargs.get("update_fields"))
         return super().save(**kwargs)
 
-    def delete(self, *args, **kwargs):
-        """Deletes the customer profile in Authorizenet before deleting it locally."""
-        if not self.pk:
-            return super().delete(*args, **kwargs)
-
-        anet_service = AuthorizenetService()
-        self._delete_in_authorizenet(anet_service)
-        return super().delete(*args, **kwargs)
-
-    def _create_in_authorizenet(self, service: AuthorizenetService) -> int:
+    @typing.override
+    def create_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> int:
         """Tries to create the customer profile in Authorizenet and return its id."""
         try:
             response = service.execute(
@@ -86,7 +121,8 @@ class CustomerProfile(models.Model):
                     merchant_id=str(self.merchant_id),
                     email=str(self.email),
                     description=str(self.desc),
-                )
+                ),
+                reference_id=reference_id,
             )
             return int(response.customerProfileId)
         except AuthorizenetControllerExecutionError as error:
@@ -97,40 +133,80 @@ class CustomerProfile(models.Model):
                         return int(part)
             raise
 
-    def _update_in_authorizenet(self, service: AuthorizenetService) -> None:
+    @typing.override
+    def update_in_authorizenet(
+        self,
+        service: AuthorizenetService,
+        update_fields: list[str] | None = None,
+        include_issuer_info: bool = False,
+        reference_id: str | None = None,
+    ) -> None:
         """Tries to update the customer profile in Authorizenet."""
         try:
-            profile = apicontractsv1.customerProfileExType()
-            profile.customerProfileId = str(self.pk)
-            profile.merchantCustomerId = str(self.merchant_id)
-            profile.email = str(self.email)
-            profile.description = str(self.desc)
-            service.execute(api.update_customer_profile(profile))
-        except AuthorizenetControllerExecutionError:
+            profile = self.get_from_authorizenet(service, include_issuer_info)
+            if update_fields is None or "user" in update_fields:
+                profile.merchantCustomerId = str(self.merchant_id)
+                profile.email = str(self.email)
+            if update_fields is None or "desc" in update_fields:
+                profile.description = str(self.desc)
+            service.execute(
+                api.update_customer_profile(profile=profile),
+                reference_id=reference_id,
+            )
+        except AuthorizenetControllerExecutionError as error:
+            logger.critical(str(error))
             raise
 
-    def _delete_in_authorizenet(self, service: AuthorizenetService) -> None:
+    @typing.override
+    def delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
         """Tries to delete the customer profile in Authorizenet."""
         try:
-            cprofile_id = int(self.pk)
             service.execute(
-                api.delete_customer_profile(customer_profile_id=cprofile_id)
+                api.delete_customer_profile(customer_profile_id=self.pk),
+                reference_id=reference_id,
             )
-            return
-        except AuthorizenetControllerExecutionError as e:
-            if e.code == "E00040":
+        except AuthorizenetControllerExecutionError as error:
+            if error.code == "E00040":
                 logger.debug(
-                    f"Failed to delete customer profile #{cprofile_id} in Authorizenet, it didn't exist (probably already deleted)."
+                    f"Tried to delete customer profile #{self.pk} but it didn't exist. It was probably already deleted."
                 )
                 return
+            logger.critical(str(error))
             raise
 
+    @typing.override
+    def get_from_authorizenet(
+        self,
+        service: AuthorizenetService,
+        include_issuer_info: bool = False,
+        reference_id: str | None = None,
+    ) -> apicontractsv1.customerProfileExType:
+        """Returns a :py:obj:`~authorizenet.apicontractsv1.customerProfileExType` element for the customer profile."""
+        try:
+            response = service.execute(
+                api.get_customer_profile(
+                    customer_profile_id=int(self.pk),
+                    include_issuer_info=include_issuer_info,
+                ),
+                reference_id=reference_id,
+            )
+        except AuthorizenetControllerExecutionError as error:
+            logger.critical(str(error))
+            raise
 
-class CustomerPaymentProfile(models.Model):
-    id = models.PositiveBigIntegerField(
-        primary_key=True, blank=True, editable=False
-    )
-    """Authorizenet customer payment profile id."""
+        profile = apicontractsv1.customerProfileExType()
+        profile.customerProfileId = str(response.profile.customerProfileId)
+        profile.merchantCustomerId = str(response.profile.merchantCustomerId)
+        profile.email = str(response.profile.email)
+        profile.description = str(response.profile.description)
+        return profile
+
+
+class CustomerPaymentProfile(AuthorizenetModel):
+    id = models.PositiveBigIntegerField(primary_key=True, blank=True)
+    """Authorizenet address profile id."""
     cprofile = models.ForeignKey(
         "terminusgps_payments.CustomerProfile",
         on_delete=models.CASCADE,
@@ -138,8 +214,6 @@ class CustomerPaymentProfile(models.Model):
         verbose_name=_("customer profile"),
     )
     """Associated Authorizenet customer profile."""
-    default = models.BooleanField(default=False)
-    """Whether the customer payment profile is set as default."""
 
     class Meta:
         verbose_name = _("payment profile")
@@ -149,6 +223,7 @@ class CustomerPaymentProfile(models.Model):
         return f"CustomerPaymentProfile #{self.pk}"
 
     def get_absolute_url(self) -> str:
+        """Returns a URL pointing to the payment profile's detail view."""
         return reverse(
             "terminusgps_payments:detail payment profiles",
             kwargs={
@@ -157,110 +232,47 @@ class CustomerPaymentProfile(models.Model):
             },
         )
 
-    def save(self, **kwargs) -> None:
-        """Creates/updates the payment profile in Authorizenet before saving."""
-        if not self.pk:
-            anet_service = AuthorizenetService()
-            self.id = self._create_in_authorizenet(anet_service)
-            self._refresh_from_authorizenet(anet_service)
-            return super().save(**kwargs)
-
-        anet_service = AuthorizenetService()
-        self._update_in_authorizenet(anet_service, kwargs.get("update_fields"))
-        self._refresh_from_authorizenet(anet_service)
-        return super().save(**kwargs)
-
-    def delete(self, *args, **kwargs):
-        """Deletes the payment profile in Authorizenet before deleting it locally."""
-        if not self.pk:
-            return super().delete(*args, **kwargs)
-
-        anet_service = AuthorizenetService()
-        self._delete_in_authorizenet(anet_service)
-        return super().delete(*args, **kwargs)
-
-    def _refresh_from_authorizenet(self, service: AuthorizenetService) -> None:
-        """Tries to retrieve obfuscated data from Authorizenet to set locally."""
+    @typing.override
+    def get_from_authorizenet(
+        self,
+        service: AuthorizenetService,
+        include_issuer_info: bool = False,
+        reference_id: str | None = None,
+    ) -> ObjectifiedElement:
         try:
             response = service.execute(
                 api.get_customer_payment_profile(
                     customer_profile_id=self.cprofile.pk,
                     payment_profile_id=self.pk,
-                    include_issuer_info=True,
-                )
+                    include_issuer_info=include_issuer_info,
+                ),
+                reference_id=reference_id,
             )
-            self.payment = response.paymentProfile.payment
-            self.address = response.paymentProfile.billTo
-        except AuthorizenetControllerExecutionError:
-            raise
-
-    def _create_in_authorizenet(self, service: AuthorizenetService) -> int:
-        """Tries to create the payment profile in Authorizenet and return its id."""
-        try:
-            response = service.execute(
-                api.create_customer_payment_profile(
-                    customer_profile_id=self.cprofile.pk,
-                    payment=self.payment,
-                    address=self.address,
-                    default=self.default,
-                    validation=settings.MERCHANT_AUTH_VALIDATION_MODE,
-                )
-            )
-            return int(response.customerPaymentProfileId)
+            return response.paymentProfile
         except AuthorizenetControllerExecutionError as error:
-            if error.code == "E00039":
-                # TODO: Retrieve existing id from Authorizenet
-                pass
+            logger.critical(error)
             raise
 
-    def _update_in_authorizenet(
-        self,
-        service: AuthorizenetService,
-        update_fields: list[str] | None = None,
+    @typing.override
+    def delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
     ) -> None:
-        """Tries to update the payment profile in Authorizenet."""
-        try:
-            kwargs = {
-                "customer_profile_id": self.cprofile.pk,
-                "payment_profile_id": self.pk,
-                "validation": settings.MERCHANT_AUTH_VALIDATION_MODE,
-            }
-            if update_fields is None or "default" in update_fields:
-                kwargs["default"] = self.default
-            if update_fields is None or "payment" in update_fields:
-                kwargs["payment"] = self.payment
-            if update_fields is None or "address" in update_fields:
-                kwargs["address"] = self.address
-
-            service.execute(api.update_customer_payment_profile(**kwargs))
-            return
-        except AuthorizenetControllerExecutionError:
-            raise
-
-    def _delete_in_authorizenet(self, service: AuthorizenetService) -> None:
-        """Tries to delete the payment profile in Authorizenet."""
         try:
             service.execute(
                 api.delete_customer_payment_profile(
                     customer_profile_id=self.cprofile.pk,
                     payment_profile_id=self.pk,
-                )
+                ),
+                reference_id=reference_id,
             )
-            return
         except AuthorizenetControllerExecutionError as error:
-            if error.code == "E00040":
-                logger.debug(
-                    f"Failed to delete payment profile #{self.pk} in Authorizenet. It was already deleted."
-                )
-                return
+            logger.critical(error)
             raise
 
 
-class CustomerAddressProfile(models.Model):
-    id = models.PositiveBigIntegerField(
-        primary_key=True, blank=True, editable=False
-    )
-    """Authorizenet customer address profile id."""
+class CustomerAddressProfile(AuthorizenetModel):
+    id = models.PositiveBigIntegerField(primary_key=True, blank=True)
+    """Authorizenet address profile id."""
     cprofile = models.ForeignKey(
         "terminusgps_payments.CustomerProfile",
         on_delete=models.CASCADE,
@@ -268,8 +280,6 @@ class CustomerAddressProfile(models.Model):
         verbose_name=_("customer profile"),
     )
     """Associated Authorizenet customer profile."""
-    default = models.BooleanField(default=False)
-    """Whether the customer address profile is set as default."""
 
     class Meta:
         verbose_name = _("address profile")
@@ -279,6 +289,7 @@ class CustomerAddressProfile(models.Model):
         return f"CustomerAddressProfile #{self.pk}"
 
     def get_absolute_url(self) -> str:
+        """Returns a URL pointing to the address profile's detail view."""
         return reverse(
             "terminusgps_payments:detail address profiles",
             kwargs={
@@ -287,118 +298,60 @@ class CustomerAddressProfile(models.Model):
             },
         )
 
-    def save(self, **kwargs) -> None:
-        """Creates/updates the address profile in Authorizenet before saving."""
-        if not self.pk:
-            anet_service = AuthorizenetService()
-            self.id = self._create_in_authorizenet(anet_service)
-            self._refresh_from_authorizenet(anet_service)
-            return super().save(**kwargs)
-
-        anet_service = AuthorizenetService()
-        self._update_in_authorizenet(anet_service)
-        self._refresh_from_authorizenet(anet_service)
-        return super().save(**kwargs)
-
-    def delete(self, *args, **kwargs):
-        """Deletes the address profile in Authorizenet before deleting it locally."""
-        if not self.pk:
-            return super().delete(*args, **kwargs)
-
-        anet_service = AuthorizenetService()
-        self._delete_in_authorizenet(anet_service)
-        return super().delete(*args, **kwargs)
-
-    def _refresh_from_authorizenet(self, service: AuthorizenetService) -> None:
-        """Tries to retrieve obfuscated data from Authorizenet to set locally."""
+    @typing.override
+    def get_from_authorizenet(
+        self,
+        service: AuthorizenetService,
+        include_issuer_info: bool = False,
+        reference_id: str | None = None,
+    ) -> ObjectifiedElement:
         try:
             response = service.execute(
                 api.get_customer_shipping_address(
                     customer_profile_id=self.cprofile.pk,
                     address_profile_id=self.pk,
-                )
+                ),
+                reference_id=reference_id,
             )
-            self.address = response.address
-        except AuthorizenetControllerExecutionError:
-            raise
-
-    def _create_in_authorizenet(self, service: AuthorizenetService) -> int:
-        """Tries to create the address profile in Authorizenet and return its id."""
-        try:
-            response = service.execute(
-                api.create_customer_shipping_address(
-                    customer_profile_id=self.cprofile.pk,
-                    address=self.address,
-                    default=self.default,
-                )
-            )
-            return int(response.customerAddressId)
+            return response.address
         except AuthorizenetControllerExecutionError as error:
-            if error.code == "E00039":
-                # TODO: Retrieve existing id from Authorizenet
-                pass
+            logger.critical(error)
             raise
 
-    def _update_in_authorizenet(self, service: AuthorizenetService) -> None:
-        """Tries to update the address profile in Authorizenet."""
-        try:
-            service.execute(
-                api.update_customer_shipping_address(
-                    customer_profile_id=self.cprofile.pk,
-                    address_profile_id=self.pk,
-                    address=self.address,
-                    default=self.default,
-                )
-            )
-        except AuthorizenetControllerExecutionError:
-            raise
-
-    def _delete_in_authorizenet(self, service: AuthorizenetService) -> None:
-        """Tries to delete the address profile in Authorizenet."""
+    @typing.override
+    def delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
         try:
             service.execute(
                 api.delete_customer_shipping_address(
                     customer_profile_id=self.cprofile.pk,
                     address_profile_id=self.pk,
-                )
+                ),
+                reference_id=reference_id,
             )
         except AuthorizenetControllerExecutionError as error:
-            if error.code == "E00040":
-                logger.debug(
-                    f"Failed to delete address profile #{self.pk} in Authorizenet. It was already deleted."
-                )
-                return
+            logger.critical(error)
             raise
 
 
-class Subscription(models.Model):
-    class SubscriptionStatus(models.TextChoices):
-        ACTIVE = "active", _("Active")
-        """Subscription is active."""
-        EXPIRED = "expired", _("Expired")
-        """Subscription is expired."""
-        SUSPENDED = "suspended", _("Suspended")
-        """Subscription is suspended."""
-        CANCELED = "canceled", _("Canceled")
-        """Subscription is canceled."""
-        TERMINATED = "terminated", _("Terminated")
-        """Subscription is terminated."""
-        UNKNOWN = "unknown", _("Unknown")
-        """Subscription status is unknown."""
-
-    id = models.PositiveBigIntegerField(
-        primary_key=True, blank=True, editable=False
-    )
-    """Authorizenet subscription id."""
+class Subscription(AuthorizenetModel):
     name = models.CharField(max_length=64)
     """Authorizenet subscription name."""
-    amount = models.DecimalField(max_digits=9, decimal_places=2)
+    amount = models.DecimalField(decimal_places=2, max_digits=9)
     """Authorizenet subscription amount."""
     status = models.CharField(
-        max_length=12,
-        choices=SubscriptionStatus.choices,
-        default=SubscriptionStatus.UNKNOWN,
+        choices=[
+            ("active", _("Active")),
+            ("expired", _("Expired")),
+            ("suspended", _("Suspended")),
+            ("canceled", _("Canceled")),
+            ("terminated", _("Terminated")),
+            ("unknown", _("Unknown")),
+        ],
+        default="unknown",
     )
+    """Authorizenet subscription status."""
     trial_amount = models.DecimalField(
         max_digits=9, decimal_places=2, default=decimal.Decimal("0.00")
     )
@@ -417,7 +370,6 @@ class Subscription(models.Model):
             (apicontractsv1.ARBSubscriptionUnitEnum.months, _("Months")),
         ],
         default=apicontractsv1.ARBSubscriptionUnitEnum.months,
-        max_length=6,
     )
     """Authorizenet subscription interval unit."""
 
@@ -452,106 +404,76 @@ class Subscription(models.Model):
         return str(self.name)
 
     def save(self, **kwargs) -> None:
-        """Creates/updates the subscription in Authorizenet before saving."""
-        anet_service = AuthorizenetService()
-        if not self.id:
-            self.id = self._create_in_authorizenet(anet_service)
-            return super().save(**kwargs)
-
-        self._update_in_authorizenet(anet_service, kwargs.get("update_fields"))
+        """Creates or updates the subscription in Authorizenet before saving."""
+        service = AuthorizenetService()
+        if not self.pk:
+            self.id = self.create_in_authorizenet(service)
+        self.update_in_authorizenet(service, kwargs.get("update_fields"))
         return super().save(**kwargs)
 
-    def delete(self, *args, **kwargs):
-        """Deletes the subscription in Authorizenet before deleting it locally."""
-        if not self.id:
-            return super().delete(*args, **kwargs)
-
-        anet_service = AuthorizenetService()
-        self._delete_in_authorizenet(anet_service)
-        return super().delete(*args, **kwargs)
-
-    def get_contract(
-        self, service: AuthorizenetService
-    ) -> apicontractsv1.ARBSubscriptionType:
-        """Returns the current subscription contract from Authorizenet."""
-        if not self.pk:
-            raise ValueError(f"Subscription pk is required, got '{self.pk}'.")
-
+    @typing.override
+    def create_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> int:
         try:
+            interval = apicontractsv1.paymentScheduleTypeInterval()
+            interval.length = str(self.interval_length)
+            interval.unit = str(self.interval_unit)
+            schedule = self._generate_schedule()
+            schedule.interval = interval
+
+            subscription = apicontractsv1.ARBSubscriptionType()
+            subscription.name = str(self.name)
+            subscription.paymentSchedule = schedule
+            subscription.amount = self.amount
+            subscription.trialAmount = self.trial_amount
+            subscription.profile = self._generate_profile()
+
             response = service.execute(
-                api.get_subscription(subscription_id=self.pk)
+                api.create_subscription(subscription=subscription)
             )
-        except AuthorizenetControllerExecutionError:
-            raise
-
-        name = response.subscription.name
-        amount = response.subscription.amount[0]
-        trial_amount = response.subscription.trialAmount[0]
-        total_occur = response.subscription.paymentSchedule.totalOccurrences
-        trial_occur = response.subscription.paymentSchedule.trialOccurrences
-        start_date = parse_date(
-            str(response.subscription.paymentSchedule.startDate[0])
-        )
-        cprofile_id = response.subscription.profile.customerProfileId
-        pprofile_id = response.subscription.profile.paymentProfile.customerPaymentProfileId
-        aprofile_id = (
-            response.subscription.profile.shippingProfile.customerAddressId
-        )
-
-        contract = apicontractsv1.ARBSubscriptionType()
-        contract.paymentSchedule = apicontractsv1.paymentScheduleType()
-        contract.paymentSchedule.startDate = start_date
-        contract.paymentSchedule.totalOccurrences = str(total_occur)
-        contract.paymentSchedule.trialOccurrences = str(trial_occur)
-        contract.profile = apicontractsv1.customerProfileIdType()
-        contract.profile.customerProfileId = str(cprofile_id)
-        contract.profile.customerPaymentProfileId = str(pprofile_id)
-        contract.profile.customerAddressId = str(aprofile_id)
-        contract.name = str(name)
-        contract.amount = str(amount)
-        contract.trialAmount = str(trial_amount)
-        return contract
-
-    def _create_in_authorizenet(self, service: AuthorizenetService) -> int:
-        """Tries to create the subscription in Authorizenet and return its id."""
-        schedule = self._generate_schedule()
-        # Payment schedule interval is required for creation only
-        schedule.interval = apicontractsv1.paymentScheduleTypeInterval()
-        schedule.interval.length = str(self.interval_length)
-        schedule.interval.unit = str(self.interval_unit)
-
-        subscription = apicontractsv1.ARBSubscriptionType()
-        subscription.name = str(self.name)
-        subscription.amount = str(self.amount)
-        subscription.trialAmount = str(self.trial_amount)
-        subscription.profile = self._generate_profile()
-        subscription.paymentSchedule = schedule
-
-        try:
-            response = service.execute(api.create_subscription(subscription))
             return int(response.subscriptionId)
         except AuthorizenetControllerExecutionError as error:
-            if error.code == "E00012":
-                # TODO: Retrieve ID from error code?
-                pass
+            logger.critical(error)
             raise
 
-    def _update_in_authorizenet(
+    @typing.override
+    def get_from_authorizenet(
+        self,
+        service: AuthorizenetService,
+        include_transactions: bool = False,
+        reference_id: str | None = None,
+    ) -> ObjectifiedElement:
+        try:
+            response = service.execute(
+                api.get_subscription(
+                    subscription_id=self.pk,
+                    include_transactions=include_transactions,
+                ),
+                reference_id=reference_id,
+            )
+            return response.subscription
+        except AuthorizenetControllerExecutionError as error:
+            logger.critical(error)
+            raise
+
+    @typing.override
+    def update_in_authorizenet(
         self,
         service: AuthorizenetService,
         update_fields: list[str] | None = None,
+        reference_id: str | None = None,
     ) -> None:
-        """Tries to update the subscription in Authorizenet."""
         try:
-            contract = self.get_contract(service)
-            if update_fields is None or any(
-                [
-                    "cprofile" in update_fields,
-                    "pprofile" in update_fields,
-                    "aprofile" in update_fields,
-                ]
-            ):
-                contract.profile = self._generate_profile()
+            subscription = self.get_from_authorizenet(
+                service, reference_id=reference_id
+            )
+            if update_fields is None or "name" in update_fields:
+                subscription.name = str(self.name)
+            if update_fields is None or "amount" in update_fields:
+                subscription.amount = self.amount
+            if update_fields is None or "trial_amount" in update_fields:
+                subscription.trialAmount = self.trial_amount
             if update_fields is None or any(
                 [
                     "start_date" in update_fields,
@@ -559,28 +481,33 @@ class Subscription(models.Model):
                     "trial_occurrences" in update_fields,
                 ]
             ):
-                contract.paymentSchedule = self._generate_schedule()
-            if update_fields is None or "name" in update_fields:
-                contract.name = str(self.name)
-            if update_fields is None or "amount" in update_fields:
-                contract.amount = str(self.amount)
-            if update_fields is None or "trial_amount" in update_fields:
-                contract.trialAmount = str(self.trial_amount)
+                subscription.paymentSchedule = self._generate_schedule()
+            if update_fields is None or any(
+                [
+                    "cprofile" in update_fields,
+                    "aprofile" in update_fields,
+                    "pprofile" in update_fields,
+                ]
+            ):
+                subscription.profile = self._generate_profile()
+
             service.execute(
                 api.update_subscription(
-                    subscription_id=self.pk, subscription=contract
+                    subscription_id=self.pk, subscription=subscription
                 )
             )
-        except AuthorizenetControllerExecutionError:
-            # TODO: Error logging
+        except AuthorizenetControllerExecutionError as error:
+            logger.critical(error)
             raise
 
-    def _delete_in_authorizenet(self, service: AuthorizenetService) -> None:
-        """Tries to delete the subscription in Authorizenet."""
+    @typing.override
+    def delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
         try:
             service.execute(api.cancel_subscription(subscription_id=self.pk))
-        except AuthorizenetControllerExecutionError:
-            # TODO: Error logging
+        except AuthorizenetControllerExecutionError as error:
+            logger.critical(error)
             raise
 
     def _generate_profile(self) -> apicontractsv1.customerProfileIdType:

@@ -10,12 +10,12 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(models.CustomerPaymentProfile)
 class CustomerPaymentProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "default", "cprofile__user"]
+    list_display = ["id", "cprofile__user"]
 
 
 @admin.register(models.CustomerAddressProfile)
 class CustomerAddressProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "default", "cprofile__user"]
+    list_display = ["id", "cprofile__user"]
 
 
 @admin.register(models.Subscription)

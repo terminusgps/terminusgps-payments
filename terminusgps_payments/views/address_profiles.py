@@ -1,3 +1,4 @@
+import logging
 import typing
 
 from django.core.exceptions import ValidationError
@@ -7,13 +8,17 @@ from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, FormView, ListView
+from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
+    AuthorizenetService,
 )
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from ..forms import CustomerAddressProfileCreateForm
 from ..models import CustomerAddressProfile, CustomerProfile
+
+logger = logging.getLogger(__name__)
 
 
 class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, FormView):
@@ -43,9 +48,18 @@ class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, FormView):
             cprofile = CustomerProfile.objects.get(
                 pk=self.kwargs["customerprofile_pk"]
             )
-            aprofile = CustomerAddressProfile(cprofile=cprofile)
-            aprofile.address = form.cleaned_data["address"]
-            aprofile.default = form.cleaned_data["default"]
+
+            service = AuthorizenetService()
+            response = service.execute(
+                api.create_customer_shipping_address(
+                    customer_profile_id=cprofile.pk,
+                    address=form.cleaned_data["address"],
+                    default=form.cleaned_data["default"],
+                )
+            )
+            aprofile = CustomerAddressProfile()
+            aprofile.cprofile = cprofile
+            aprofile.id = int(response.customerAddressId)
             aprofile.save()
             return super().form_valid(form=form)
         except CustomerProfile.DoesNotExist:
@@ -111,18 +125,37 @@ class CustomerAddressProfileDetailView(HtmxTemplateResponseMixin, DetailView):
             cprofile__pk=self.kwargs["customerprofile_pk"]
         )
 
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        try:
+            service = AuthorizenetService()
+            response = service.execute(
+                api.get_customer_shipping_address(
+                    customer_profile_id=self.object.cprofile.pk,
+                    address_profile_id=self.object.pk,
+                )
+            )
+        except AuthorizenetControllerExecutionError as error:
+            response = None
+            logger.warning(error)
+
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        context["address"] = response.address if response is not None else None
+        return context
+
 
 class CustomerAddressProfileDeleteView(HtmxTemplateResponseMixin, DeleteView):
     content_type = "text/html"
     http_method_names = ["post"]
     model = CustomerAddressProfile
-    partial_template_name = (
-        "terminusgps_payments/address_profiles/partials/_deleted.html"
-    )
     pk_url_kwarg = "addressprofile_pk"
-    template_name = "terminusgps_payments/address_profiles/deleted.html"
 
     def get_queryset(self) -> QuerySet:
         return self.model.objects.filter(
             cprofile__pk=self.kwargs["customerprofile_pk"]
+        )
+
+    def get_success_url(self) -> str:
+        return reverse(
+            "terminusgps_payments:list address profiles",
+            kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
         )

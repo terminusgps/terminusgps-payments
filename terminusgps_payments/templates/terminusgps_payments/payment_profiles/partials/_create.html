@@ -1,4 +1,4 @@
-<form hx-target="this" hx-post="{% url 'terminusgps_payments:create payment profiles' customerprofile.pk %}">
+<form hx-target="this" hx-post="{% url 'terminusgps_payments:create payment profiles' customerprofile.pk %}" hx-select="#payment-profiles">
     <label for="id_form">Payment Type:</label>
     <select class="p-2 rounded border" name="form" id="id_form" hx-get="{% url 'terminusgps_payments:create payment profiles' customerprofile.pk %}" hx-include="this" hx-target="#payment-profiles">
         <option value="credit-card" {% if 'form=credit-card' in request.META.QUERY_STRING %}selected{% endif %}>Credit Card</option>

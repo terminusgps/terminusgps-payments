@@ -1,6 +1,8 @@
+import logging
 import typing
 
 from authorizenet import apicontractsv1
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
@@ -8,10 +10,11 @@ from django.forms import Form
 from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from django.views.generic import DetailView, FormView, ListView
-from lxml.objectify import ObjectifiedElement
+from django.views.generic import DeleteView, DetailView, FormView, ListView
+from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
+    AuthorizenetService,
 )
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
@@ -20,6 +23,8 @@ from ..forms import (
     CustomerPaymentProfileCreditCardCreateForm,
 )
 from ..models import CustomerPaymentProfile, CustomerProfile
+
+logger = logging.getLogger(__name__)
 
 
 class CustomerPaymentProfileCreateView(HtmxTemplateResponseMixin, FormView):
@@ -43,10 +48,26 @@ class CustomerPaymentProfileCreateView(HtmxTemplateResponseMixin, FormView):
                 pk=self.kwargs["customerprofile_pk"]
             )
 
-            contract = self.generate_payment_profile_contract(form)
-            pprofile = CustomerPaymentProfile(cprofile=cprofile)
-            pprofile.payment = contract.payment
-            pprofile.address = contract.billTo
+            payment = apicontractsv1.paymentType()
+            if "credit_card" in form.cleaned_data:
+                payment.creditCard = form.cleaned_data["credit_card"]
+            elif "bank_account" in form.cleaned_data:
+                payment.bankAccount = form.cleaned_data["bank_account"]
+
+            response = AuthorizenetService().execute(
+                api.create_customer_payment_profile(
+                    customer_profile_id=cprofile.pk,
+                    payment=payment,
+                    address=form.cleaned_data["address"],
+                    default=form.cleaned_data["default"],
+                    validation=getattr(
+                        settings, "MERCHANT_AUTH_VALIDATION_MODE", "liveMode"
+                    ),
+                )
+            )
+            pprofile = CustomerPaymentProfile()
+            pprofile.cprofile = cprofile
+            pprofile.pk = int(response.customerPaymentProfileId)
             pprofile.save()
             return super().form_valid(form=form)
         except CustomerProfile.DoesNotExist:
@@ -96,20 +117,6 @@ class CustomerPaymentProfileCreateView(HtmxTemplateResponseMixin, FormView):
             case _:
                 return Form
 
-    def generate_payment_profile_contract(
-        self, form: Form
-    ) -> ObjectifiedElement:
-        payment = apicontractsv1.paymentType()
-        if "credit_card" in form.cleaned_data:
-            payment.creditCard = form.cleaned_data["credit_card"]
-        elif "bank_account" in form.cleaned_data:
-            payment.bankAccount = form.cleaned_data["bank_account"]
-
-        contract = apicontractsv1.customerPaymentProfileType()
-        contract.payment = payment
-        contract.billTo = form.cleaned_data["address"]
-        return contract
-
 
 class CustomerPaymentProfileDetailView(HtmxTemplateResponseMixin, DetailView):
     content_type = "text/html"
@@ -125,6 +132,26 @@ class CustomerPaymentProfileDetailView(HtmxTemplateResponseMixin, DetailView):
         return self.model.objects.filter(
             cprofile__pk=self.kwargs["customerprofile_pk"]
         )
+
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        try:
+            service = AuthorizenetService()
+            response = service.execute(
+                api.get_customer_payment_profile(
+                    customer_profile_id=self.object.cprofile.pk,
+                    payment_profile_id=self.object.pk,
+                    include_issuer_info=True,
+                )
+            )
+        except AuthorizenetControllerExecutionError as error:
+            response = None
+            logger.warning(error)
+
+        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+        context["paymentProfile"] = (
+            response.paymentProfile if response is not None else None
+        )
+        return context
 
 
 class CustomerPaymentProfileListView(HtmxTemplateResponseMixin, ListView):
@@ -148,3 +175,21 @@ class CustomerPaymentProfileListView(HtmxTemplateResponseMixin, ListView):
             pk=self.kwargs["customerprofile_pk"]
         )
         return context
+
+
+class CustomerPaymentProfileDeleteView(HtmxTemplateResponseMixin, DeleteView):
+    content_type = "text/html"
+    http_method_names = ["post"]
+    model = CustomerPaymentProfile
+    pk_url_kwarg = "paymentprofile_pk"
+
+    def get_success_url(self) -> str:
+        return reverse(
+            "terminusgps_payments:list payment profiles",
+            kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
+        )
+
+    def get_queryset(self) -> QuerySet:
+        return self.model.objects.filter(
+            cprofile__pk=self.kwargs["customerprofile_pk"]
+        )
