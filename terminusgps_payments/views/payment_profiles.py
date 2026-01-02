@@ -7,7 +7,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
-from django.forms import Form
 from django.http import HttpRequest, HttpResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -25,11 +24,14 @@ from ..forms import (
     CustomerPaymentProfileCreditCardCreateForm,
 )
 from ..models import CustomerPaymentProfile, CustomerProfile
+from .mixins import CustomerProfileExclusiveMixin
 
 logger = logging.getLogger(__name__)
 
 
-class CreditCardCreateView(HtmxTemplateResponseMixin, FormView):
+class CreditCardCreateView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, FormView
+):
     content_type = "text/html"
     form_class = CustomerPaymentProfileCreditCardCreateForm
     http_method_names = ["get", "post"]
@@ -90,7 +92,9 @@ class CreditCardCreateView(HtmxTemplateResponseMixin, FormView):
             return self.form_invalid(form=form)
 
 
-class BankAccountCreateView(HtmxTemplateResponseMixin, FormView):
+class BankAccountCreateView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, FormView
+):
     content_type = "text/html"
     form_class = CustomerPaymentProfileBankAccountCreateForm
     http_method_names = ["get", "post"]
@@ -151,83 +155,9 @@ class BankAccountCreateView(HtmxTemplateResponseMixin, FormView):
             return self.form_invalid(form=form)
 
 
-class CustomerPaymentProfileCreateView(HtmxTemplateResponseMixin, FormView):
-    content_type = "text/html"
-    http_method_names = ["get", "post"]
-    partial_template_name = (
-        "terminusgps_payments/payment_profiles/partials/_create.html"
-    )
-    template_name = "terminusgps_payments/payment_profiles/create.html"
-
-    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
-        self.cprofile = CustomerProfile.objects.get(
-            pk=kwargs["customerprofile_pk"]
-        )
-        return super().setup(request, *args, **kwargs)
-
-    def get_success_url(self) -> str:
-        return reverse(
-            "terminusgps_payments:list payment profiles",
-            kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
-        )
-
-    @transaction.atomic
-    def form_valid(self, form: Form) -> HttpResponse:
-        try:
-            payment = apicontractsv1.paymentType()
-            if "credit_card" in form.cleaned_data:
-                payment.creditCard = form.cleaned_data["credit_card"]
-            elif "bank_account" in form.cleaned_data:
-                payment.bankAccount = form.cleaned_data["bank_account"]
-            else:
-                raise ValueError()
-
-            response = AuthorizenetService().execute(
-                api.create_customer_payment_profile(
-                    customer_profile_id=self.cprofile.pk,
-                    payment=payment,
-                    address=form.cleaned_data["address"],
-                    default=form.cleaned_data["default"],
-                    validation=getattr(
-                        settings, "MERCHANT_AUTH_VALIDATION_MODE", "liveMode"
-                    ),
-                )
-            )
-            CustomerPaymentProfile.objects.create(
-                id=int(response.customerPaymentProfileId),
-                cprofile=self.cprofile,
-            )
-            return super().form_valid(form=form)
-        except ValueError as error:
-            form.add_error(
-                None,
-                ValidationError(
-                    _("Whoops! %(error)s"),
-                    code="invalid",
-                    params={"error": error},
-                ),
-            )
-            return self.form_invalid(form=form)
-        except AuthorizenetControllerExecutionError as error:
-            match error.code:
-                case _:
-                    form.add_error(
-                        None,
-                        ValidationError(
-                            _("Whoops! %(error)s"),
-                            code="invalid",
-                            params={"error": error},
-                        ),
-                    )
-            return self.form_invalid(form=form)
-
-    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
-        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        context["customerprofile"] = self.cprofile
-        return context
-
-
-class CustomerPaymentProfileDetailView(HtmxTemplateResponseMixin, DetailView):
+class CustomerPaymentProfileDetailView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, DetailView
+):
     content_type = "text/html"
     http_method_names = ["get"]
     model = CustomerPaymentProfile
@@ -237,33 +167,42 @@ class CustomerPaymentProfileDetailView(HtmxTemplateResponseMixin, DetailView):
     pk_url_kwarg = "paymentprofile_pk"
     template_name = "terminusgps_payments/payment_profiles/detail.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        try:
+            self.cprofile = CustomerProfile.objects.get(
+                pk=kwargs["customerprofile_pk"]
+            )
+        except CustomerProfile.DoesNotExist:
+            self.cprofile = None
+        return super().setup(request, *args, **kwargs)
+
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            cprofile__pk=self.kwargs["customerprofile_pk"]
-        )
+        return self.model.objects.filter(cprofile=self.cprofile)
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         try:
+            context: dict[str, typing.Any] = super().get_context_data(**kwargs)
             service = AuthorizenetService()
             response = service.execute(
                 api.get_customer_payment_profile(
-                    customer_profile_id=self.object.cprofile.pk,
+                    customer_profile_id=self.cprofile.pk,
                     payment_profile_id=self.object.pk,
                     include_issuer_info=True,
                 )
             )
+            context["paymentProfile"] = (
+                response.paymentProfile if response is not None else None
+            )
+            return context
         except AuthorizenetControllerExecutionError as error:
-            response = None
+            context["paymentProfile"] = None
             logger.warning(error)
-
-        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        context["paymentProfile"] = (
-            response.paymentProfile if response is not None else None
-        )
-        return context
+            return context
 
 
-class CustomerPaymentProfileListView(HtmxTemplateResponseMixin, ListView):
+class CustomerPaymentProfileListView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, ListView
+):
     content_type = "text/html"
     http_method_names = ["get"]
     model = CustomerPaymentProfile
@@ -293,25 +232,36 @@ class CustomerPaymentProfileListView(HtmxTemplateResponseMixin, ListView):
         return context
 
 
-class CustomerPaymentProfileDeleteView(HtmxTemplateResponseMixin, DeleteView):
+class CustomerPaymentProfileDeleteView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, DeleteView
+):
     content_type = "text/html"
     http_method_names = ["post"]
     model = CustomerPaymentProfile
     pk_url_kwarg = "paymentprofile_pk"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        try:
+            self.cprofile = CustomerProfile.objects.get(
+                pk=kwargs["customerprofile_pk"]
+            )
+        except CustomerProfile.DoesNotExist:
+            self.cprofile = None
+        return super().setup(request, *args, **kwargs)
+
+    def get_queryset(self) -> QuerySet:
+        return self.model.objects.filter(cprofile=self.cprofile)
+
     def get_success_url(self) -> str:
         return reverse(
             "terminusgps_payments:list payment profiles",
-            kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
-        )
-
-    def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            cprofile__pk=self.kwargs["customerprofile_pk"]
+            kwargs={"customerprofile_pk": self.cprofile.pk},
         )
 
 
-class CustomerPaymentProfileChoiceView(HtmxTemplateResponseMixin, ListView):
+class CustomerPaymentProfileChoiceView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, ListView
+):
     content_type = "text/html"
     http_method_names = ["get"]
     model = CustomerPaymentProfile
@@ -342,14 +292,13 @@ class CustomerPaymentProfileChoiceView(HtmxTemplateResponseMixin, ListView):
         return context
 
     def get_choices(self) -> list[tuple[int, str]]:
-        service = AuthorizenetService()
-        choices = []
-
         try:
+            service = AuthorizenetService()
+            choices = []
             for obj in self.get_queryset():
                 resp = obj.get_from_authorizenet(service)
-                choice = {"value": obj.pk, "label": self._extract_label(resp)}
-                choices.append(choice)
+                item = {"value": obj.pk, "label": self._extract_label(resp)}
+                choices.append(item)
             return choices
         except AuthorizenetControllerExecutionError as error:
             logger.critical(error)

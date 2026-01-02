@@ -45,11 +45,6 @@ urlpatterns = [
         name="choice payment profiles",
     ),
     path(
-        "payment-profiles/<int:customerprofile_pk>/create/",
-        views.CustomerPaymentProfileCreateView.as_view(),
-        name="create payment profiles",
-    ),
-    path(
         "payment-profiles/<int:customerprofile_pk>/add-credit-card/",
         views.CreditCardCreateView.as_view(),
         name="add credit card",

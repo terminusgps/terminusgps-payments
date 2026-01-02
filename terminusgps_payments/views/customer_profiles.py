@@ -1,12 +1,12 @@
-from django.contrib.auth.mixins import UserPassesTestMixin
 from django.views.generic import DetailView
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from ..models import CustomerProfile
+from .mixins import CustomerProfileExclusiveMixin
 
 
 class CustomerProfileDetailView(
-    UserPassesTestMixin, HtmxTemplateResponseMixin, DetailView
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, DetailView
 ):
     content_type = "text/html"
     model = CustomerProfile
@@ -15,9 +15,3 @@ class CustomerProfileDetailView(
     )
     pk_url_kwarg = "customerprofile_pk"
     template_name = "terminusgps_payments/customer_profiles/detail.html"
-
-    def test_func(self):
-        return (
-            self.request.user.is_staff
-            or self.get_object().user.pk == self.request.user.pk
-        )

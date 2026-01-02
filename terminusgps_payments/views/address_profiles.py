@@ -18,11 +18,14 @@ from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from ..forms import CustomerAddressProfileCreateForm
 from ..models import CustomerAddressProfile, CustomerProfile
+from .mixins import CustomerProfileExclusiveMixin
 
 logger = logging.getLogger(__name__)
 
 
-class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, FormView):
+class CustomerAddressProfileCreateView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, FormView
+):
     content_type = "text/html"
     form_class = CustomerAddressProfileCreateForm
     http_method_names = ["get", "post"]
@@ -31,49 +34,41 @@ class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, FormView):
     )
     template_name = "terminusgps_payments/address_profiles/create.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        try:
+            self.cprofile = CustomerProfile.objects.get(
+                kwargs["customerprofile_pk"]
+            )
+        except CustomerProfile.DoesNotExist:
+            self.cprofile = None
+        return super().setup(request, *args, **kwargs)
+
     def get_success_url(self) -> str:
         return reverse(
             "terminusgps_payments:list address profiles",
-            kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
+            kwargs={"customerprofile_pk": self.cprofile.pk},
         )
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        context["customerprofile"] = CustomerProfile.objects.get(
-            pk=self.kwargs["customerprofile_pk"]
-        )
+        context["customerprofile"] = self.cprofile
         return context
 
     def form_valid(self, form: Form) -> HttpResponse:
         try:
-            cprofile = CustomerProfile.objects.get(
-                pk=self.kwargs["customerprofile_pk"]
-            )
-
             service = AuthorizenetService()
             response = service.execute(
                 api.create_customer_shipping_address(
-                    customer_profile_id=cprofile.pk,
+                    customer_profile_id=self.cprofile.pk,
                     address=form.cleaned_data["address"],
                     default=form.cleaned_data["default"],
                 )
             )
             aprofile = CustomerAddressProfile()
-            aprofile.cprofile = cprofile
-            aprofile.id = int(response.customerAddressId)
+            aprofile.pk = int(response.customerAddressId)
+            aprofile.cprofile = self.cprofile
             aprofile.save()
             return super().form_valid(form=form)
-        except CustomerProfile.DoesNotExist:
-            form.add_error(
-                None,
-                ValidationError(
-                    _(
-                        "Whoops! Something went wrong on our end, please try again later."
-                    ),
-                    code="invalid",
-                ),
-            )
-            return self.form_invalid(form=form)
         except AuthorizenetControllerExecutionError as error:
             match error.code:
                 case _:
@@ -88,7 +83,9 @@ class CustomerAddressProfileCreateView(HtmxTemplateResponseMixin, FormView):
             return self.form_invalid(form=form)
 
 
-class CustomerAddressProfileListView(HtmxTemplateResponseMixin, ListView):
+class CustomerAddressProfileListView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, ListView
+):
     content_type = "text/html"
     http_method_names = ["get"]
     model = CustomerAddressProfile
@@ -98,20 +95,29 @@ class CustomerAddressProfileListView(HtmxTemplateResponseMixin, ListView):
     )
     template_name = "terminusgps_payments/address_profiles/list.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        try:
+            self.cprofile = CustomerProfile.objects.get(
+                kwargs["customerprofile_pk"]
+            )
+        except CustomerProfile.DoesNotExist:
+            self.cprofile = None
+        return super().setup(request, *args, **kwargs)
+
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            cprofile__pk=self.kwargs["customerprofile_pk"]
-        ).order_by(self.get_ordering())
+        return self.model.objects.filter(cprofile=self.cprofile).order_by(
+            self.get_ordering()
+        )
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        context["customerprofile"] = CustomerProfile.objects.get(
-            pk=self.kwargs["customerprofile_pk"]
-        )
+        context["customerprofile"] = self.cprofile
         return context
 
 
-class CustomerAddressProfileDetailView(HtmxTemplateResponseMixin, DetailView):
+class CustomerAddressProfileDetailView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, DetailView
+):
     content_type = "text/html"
     http_method_names = ["get"]
     model = CustomerAddressProfile
@@ -121,48 +127,66 @@ class CustomerAddressProfileDetailView(HtmxTemplateResponseMixin, DetailView):
     pk_url_kwarg = "addressprofile_pk"
     template_name = "terminusgps_payments/address_profiles/detail.html"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        try:
+            self.cprofile = CustomerProfile.objects.get(
+                kwargs["customerprofile_pk"]
+            )
+        except CustomerProfile.DoesNotExist:
+            self.cprofile = None
+        return super().setup(request, *args, **kwargs)
+
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            cprofile__pk=self.kwargs["customerprofile_pk"]
-        )
+        return self.model.objects.filter(cprofile=self.cprofile)
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         try:
+            context: dict[str, typing.Any] = super().get_context_data(**kwargs)
             service = AuthorizenetService()
             response = service.execute(
                 api.get_customer_shipping_address(
-                    customer_profile_id=self.object.cprofile.pk,
+                    customer_profile_id=self.cprofile.pk,
                     address_profile_id=self.object.pk,
                 )
             )
+            context["address"] = response.address
+            return context
         except AuthorizenetControllerExecutionError as error:
-            response = None
+            context["address"] = None
             logger.warning(error)
-
-        context: dict[str, typing.Any] = super().get_context_data(**kwargs)
-        context["address"] = response.address if response is not None else None
-        return context
+            return context
 
 
-class CustomerAddressProfileDeleteView(HtmxTemplateResponseMixin, DeleteView):
+class CustomerAddressProfileDeleteView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, DeleteView
+):
     content_type = "text/html"
     http_method_names = ["post"]
     model = CustomerAddressProfile
     pk_url_kwarg = "addressprofile_pk"
 
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        try:
+            self.cprofile = CustomerProfile.objects.get(
+                kwargs["customerprofile_pk"]
+            )
+        except CustomerProfile.DoesNotExist:
+            self.cprofile = None
+        return super().setup(request, *args, **kwargs)
+
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            cprofile__pk=self.kwargs["customerprofile_pk"]
-        )
+        return self.model.objects.filter(cprofile=self.cprofile)
 
     def get_success_url(self) -> str:
         return reverse(
             "terminusgps_payments:list address profiles",
-            kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
+            kwargs={"customerprofile_pk": self.cprofile.pk},
         )
 
 
-class CustomerAddressProfileChoiceView(HtmxTemplateResponseMixin, ListView):
+class CustomerAddressProfileChoiceView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, ListView
+):
     content_type = "text/html"
     http_method_names = ["get"]
     model = CustomerAddressProfile
