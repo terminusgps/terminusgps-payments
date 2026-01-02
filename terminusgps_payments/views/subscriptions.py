@@ -1,7 +1,8 @@
+import decimal
 import typing
 
 from django import forms
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.urls import reverse
 from django.views.generic import CreateView, DetailView, UpdateView
 from terminusgps.mixins import HtmxTemplateResponseMixin
@@ -14,15 +15,7 @@ class SubscriptionCreateView(
     CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, CreateView
 ):
     content_type = "text/html"
-    fields = [
-        "name",
-        "amount",
-        "trial_amount",
-        "total_occurrences",
-        "trial_occurrences",
-        "aprofile",
-        "pprofile",
-    ]
+    fields = ["aprofile", "pprofile"]
     http_method_names = ["get", "post"]
     model = Subscription
     partial_template_name = (
@@ -37,12 +30,29 @@ class SubscriptionCreateView(
             )
         except CustomerProfile.DoesNotExist:
             self.cprofile = None
+
+        self.name = kwargs.get("name", "Terminus GPS Subscription")
+        self.amount = kwargs.get("amount", decimal.Decimal("24.99"))
+        self.total_occurrences = kwargs.get("total_occurrences", 9999)
+        self.trial_occurrences = kwargs.get("trial_occurrences", 0)
+        self.trial_amount = kwargs.get("trial_amount", decimal.Decimal("0.00"))
         return super().setup(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context: dict[str, typing.Any] = super().get_context_data(**kwargs)
         context["customerprofile"] = self.cprofile
         return context
+
+    def form_valid(self, form: forms.Form) -> HttpResponse:
+        obj = form.save(commit=False)
+        obj.name = self.name
+        obj.amount = self.amount
+        obj.trial_amount = self.trial_amount
+        obj.total_occurrences = self.total_occurrences
+        obj.trial_occurrences = self.trial_occurrences
+        obj.cprofile = self.cprofile
+        obj.save()
+        return super().form_valid(form=form)
 
     def get_form(self, form_class=None) -> forms.Form:
         form = super().get_form(form_class=form_class)
