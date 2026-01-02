@@ -600,7 +600,7 @@ wheels = [
 
 [[package]]
 name = "python-terminusgps"
-version = "50.2.1"
+version = "50.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authorizenet" },
@@ -608,9 +608,9 @@ dependencies = [
     { name = "py-aiowialon" },
     { name = "python-wialon" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/26/dcc5bd3fa0540bfc350b9a80771bc547e689c21a5e7c4d2d06106c9002f6/python_terminusgps-50.2.1.tar.gz", hash = "sha256:2f78300393c17c612d4d7912cbc7379a270c46f05bbc71b18f64cae3edafae4f", size = 99629, upload-time = "2025-12-29T20:43:19.425Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/84/3d/e50b4bca7d51ca9c0590b46484fab984850dc5762ad402279ab09934de45/python_terminusgps-50.2.3.tar.gz", hash = "sha256:2bc2cfa60e2a02845e5db48d27b02b0a4744ce56392f1e2af35672d63a46bf8b", size = 99644, upload-time = "2025-12-30T20:17:18.823Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/d1/3496815540ab58a0b580541232cd46ccb24b0c77cb556e0909b8a6d8adfa/python_terminusgps-50.2.1-py3-none-any.whl", hash = "sha256:f32185a13bab124cd950abc2f2a83a6f682fba66eb397f7c0d9592d4d3ffa64d", size = 36156, upload-time = "2025-12-29T20:43:20.702Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/f5/0c0a2526dbc566758366076fc5f07228cfb6e233e90dc659c234c0bdf3fd/python_terminusgps-50.2.3-py3-none-any.whl", hash = "sha256:855bd093823757450db304f53985668fb55bb9575cf073464aed3a1efa4f4bb3", size = 36174, upload-time = "2025-12-30T20:17:17.533Z" },
 ]
 
 [[package]]

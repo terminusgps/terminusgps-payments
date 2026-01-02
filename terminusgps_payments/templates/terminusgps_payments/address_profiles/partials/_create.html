@@ -1,13 +1,14 @@
-<form hx-target="this" hx-post="{% url 'terminusgps_payments:create address profiles' customerprofile.pk %}">
+<form hx-target="this" hx-post="{% url 'terminusgps_payments:add shipping address' customerprofile_pk=customerprofile.pk %}">
     {% csrf_token %}
     {{ form }}
     <button type="submit">Submit</button>
 </form>
 <button
-  type="button"
-  hx-target="#address-profiles"
-  hx-get="{% url 'terminusgps_payments:list address profiles' customerprofile.pk %}"
-  hx-trigger="click"
+    id="add-shipping-address-button"
+    type="button"
+    hx-target="#address-profiles"
+    hx-get="{% url 'terminusgps_payments:list address profiles' customerprofile_pk=customerprofile.pk %}"
+    hx-trigger="click"
 >
-  <p>Cancel</p>
+    <p>Cancel</p>
 </button>

@@ -4,10 +4,11 @@ import typing
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 from django.forms import Form
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, DetailView, FormView, ListView
+from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
@@ -159,3 +160,51 @@ class CustomerAddressProfileDeleteView(HtmxTemplateResponseMixin, DeleteView):
             "terminusgps_payments:list address profiles",
             kwargs={"customerprofile_pk": self.kwargs["customerprofile_pk"]},
         )
+
+
+class CustomerAddressProfileChoiceView(HtmxTemplateResponseMixin, ListView):
+    content_type = "text/html"
+    http_method_names = ["get"]
+    model = CustomerAddressProfile
+    partial_template_name = (
+        "terminusgps_payments/address_profiles/partials/_choices.html"
+    )
+    template_name = "terminusgps_payments/address_profiles/choices.html"
+
+    def setup(self, request: HttpRequest, *args, **kwargs) -> None:
+        try:
+            self.cprofile = CustomerProfile.objects.get(
+                pk=kwargs["customerprofile_pk"]
+            )
+        except CustomerProfile.DoesNotExist:
+            self.cprofile = None
+        return super().setup(request, *args, **kwargs)
+
+    def get_queryset(self) -> QuerySet:
+        return self.model.objects.filter(cprofile=self.cprofile)
+
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        try:
+            context: dict[str, typing.Any] = super().get_context_data(**kwargs)
+            context["choices"] = self.get_choices()
+        except AuthorizenetControllerExecutionError as error:
+            logger.warning(error)
+            context["choices"] = []
+        return context
+
+    def get_choices(self) -> list[tuple[int, str]]:
+        service = AuthorizenetService()
+        choices = []
+
+        try:
+            for obj in self.get_queryset():
+                resp = obj.get_from_authorizenet(service)
+                choice = {"value": obj.pk, "label": self._extract_label(resp)}
+                choices.append(choice)
+            return choices
+        except AuthorizenetControllerExecutionError as error:
+            logger.critical(error)
+            raise
+
+    def _extract_label(self, response: ObjectifiedElement) -> str:
+        return str(response.address.address)

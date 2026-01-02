@@ -1,0 +1,12 @@
+<div id="subscription-{{ subscription.pk }}">
+  <p>Details</p>
+</div>
+<button
+  id="update-subscription-button"
+  type="button"
+  hx-get="{% url 'terminusgps_payments:update subscriptions' customerprofile_pk=customerprofile.pk subscription_pk=subscription.pk %}"
+  hx-target="#subscription-{{ subscription.pk }}"
+  hx-trigger="click"
+>
+  <p>Update</p>
+</button>

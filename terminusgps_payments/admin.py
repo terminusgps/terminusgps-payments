@@ -21,4 +21,4 @@ class CustomerAddressProfileAdmin(admin.ModelAdmin):
 @admin.register(models.Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
     list_display = ["name", "amount", "status", "cprofile__user"]
-    list_filter = ["name", "status"]
+    list_filter = ["status"]
