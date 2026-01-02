@@ -258,6 +258,32 @@ class CustomerPaymentProfileDeleteView(
             kwargs={"customerprofile_pk": self.cprofile.pk},
         )
 
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        try:
+            return super().form_valid(form=form)
+        except AuthorizenetControllerExecutionError as error:
+            match error.code:
+                case "E00105":
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _(
+                                "Whoops! This payment profile is currently associated with an active subscription. It cannot be deleted."
+                            ),
+                            code="invalid",
+                        ),
+                    )
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            _("Whoops! %(error)s"),
+                            code="invalid",
+                            params={"error": error},
+                        ),
+                    )
+            return self.form_invalid(form=form)
+
 
 class CustomerPaymentProfileChoiceView(
     CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, ListView
