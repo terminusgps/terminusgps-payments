@@ -118,6 +118,19 @@ class Subscription(AuthorizenetModel):
             logger.critical(error)
             raise
 
+    def get_transactions(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> ObjectifiedElement:
+        try:
+            response = self.get_from_authorizenet(
+                service, include_transactions=True, reference_id=reference_id
+            )
+            print(f"{dir(response) = }")
+            return response
+        except AuthorizenetControllerExecutionError as error:
+            logger.critical(error)
+            raise
+
     @typing.override
     def create_in_authorizenet(
         self, service: AuthorizenetService, reference_id: str | None = None

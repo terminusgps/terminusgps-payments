@@ -37,7 +37,7 @@ class CustomerAddressProfileCreateView(
     def setup(self, request: HttpRequest, *args, **kwargs) -> None:
         try:
             self.cprofile = CustomerProfile.objects.get(
-                kwargs["customerprofile_pk"]
+                pk=kwargs["customerprofile_pk"]
             )
         except CustomerProfile.DoesNotExist:
             self.cprofile = None
@@ -98,7 +98,7 @@ class CustomerAddressProfileListView(
     def setup(self, request: HttpRequest, *args, **kwargs) -> None:
         try:
             self.cprofile = CustomerProfile.objects.get(
-                kwargs["customerprofile_pk"]
+                pk=kwargs["customerprofile_pk"]
             )
         except CustomerProfile.DoesNotExist:
             self.cprofile = None
@@ -130,7 +130,7 @@ class CustomerAddressProfileDetailView(
     def setup(self, request: HttpRequest, *args, **kwargs) -> None:
         try:
             self.cprofile = CustomerProfile.objects.get(
-                kwargs["customerprofile_pk"]
+                pk=kwargs["customerprofile_pk"]
             )
         except CustomerProfile.DoesNotExist:
             self.cprofile = None
@@ -168,7 +168,7 @@ class CustomerAddressProfileDeleteView(
     def setup(self, request: HttpRequest, *args, **kwargs) -> None:
         try:
             self.cprofile = CustomerProfile.objects.get(
-                kwargs["customerprofile_pk"]
+                pk=kwargs["customerprofile_pk"]
             )
         except CustomerProfile.DoesNotExist:
             self.cprofile = None
