@@ -7,9 +7,12 @@ from django.views.generic import CreateView, DetailView, UpdateView
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
 from ..models import CustomerProfile, Subscription
+from .mixins import CustomerProfileExclusiveMixin
 
 
-class SubscriptionCreateView(HtmxTemplateResponseMixin, CreateView):
+class SubscriptionCreateView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, CreateView
+):
     content_type = "text/html"
     fields = [
         "name",
@@ -74,7 +77,9 @@ class SubscriptionCreateView(HtmxTemplateResponseMixin, CreateView):
         return form
 
 
-class SubscriptionDetailView(HtmxTemplateResponseMixin, DetailView):
+class SubscriptionDetailView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, DetailView
+):
     content_type = "text/html"
     http_method_names = ["get"]
     model = Subscription
@@ -99,7 +104,9 @@ class SubscriptionDetailView(HtmxTemplateResponseMixin, DetailView):
         return context
 
 
-class SubscriptionUpdateView(HtmxTemplateResponseMixin, UpdateView):
+class SubscriptionUpdateView(
+    CustomerProfileExclusiveMixin, HtmxTemplateResponseMixin, UpdateView
+):
     content_type = "text/html"
     fields = ["aprofile", "pprofile"]
     http_method_names = ["get", "post"]
