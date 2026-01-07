@@ -1,7 +1,0 @@
-<form id="update-subscription-form" hx-post="{% url 'terminusgps_payments:update subscriptions' customerprofile_pk=customerprofile.pk subscription_pk=subscription.pk %}">
-    {% csrf_token %}
-    {{ form }}
-    <button id="submit-button" type="submit">
-        <p>Submit</p>
-    </button>
-</form>

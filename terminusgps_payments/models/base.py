@@ -19,12 +19,14 @@ class AuthorizenetModel(models.Model):
         service = AuthorizenetService()
         if not self.pk:
             self.id = self.create_in_authorizenet(service)
-            return super().save(**kwargs)
-        self.update_in_authorizenet(service, kwargs.get("update_fields"))
+        elif kwargs.pop("push", True):
+            self.update_in_authorizenet(service)
+        else:
+            self.sync_with_authorizenet(service)
         return super().save(**kwargs)
 
     def delete(self, *args, **kwargs):
-        """Deletes the object in Authorizenet before deleting."""
+        """Deletes the object in Authorizenet before deleting it locally."""
         if not self.pk:
             return super().delete(*args, **kwargs)
         service = AuthorizenetService()
@@ -55,7 +57,6 @@ class AuthorizenetModel(models.Model):
     def update_in_authorizenet(
         self,
         service: AuthorizenetService,
-        update_fields: list[str] | None = None,
         reference_id: str | None = None,
         **kwargs,
     ) -> None:
@@ -70,4 +71,14 @@ class AuthorizenetModel(models.Model):
         **kwargs,
     ) -> None:
         """Tries to delete the object in Authorizenet."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abc.abstractmethod
+    def sync_with_authorizenet(
+        self,
+        service: AuthorizenetService,
+        reference_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        """Tries to sync the object's local data with Authorizenet's remote data."""
         raise NotImplementedError("Subclasses must implement this method.")

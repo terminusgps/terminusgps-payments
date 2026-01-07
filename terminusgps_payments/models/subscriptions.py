@@ -67,14 +67,14 @@ class Subscription(AuthorizenetModel):
     """Associated customer profile."""
     pprofile = models.ForeignKey(
         "terminusgps_payments.CustomerPaymentProfile",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="subscriptions",
         verbose_name=_("payment profile"),
     )
     """Associated payment profile."""
     aprofile = models.ForeignKey(
         "terminusgps_payments.CustomerAddressProfile",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="subscriptions",
         verbose_name=_("address profile"),
     )
@@ -98,51 +98,26 @@ class Subscription(AuthorizenetModel):
             },
         )
 
-    def save(self, **kwargs) -> None:
-        """Refreshes the subscription status from Authorizenet before saving."""
-        if self.pk:
-            service = AuthorizenetService()
-            self.status = self.get_status(service)
-        return super().save(**kwargs)
-
-    def get_status(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> str:
-        """Tries to return the current subscription status from Authorizenet."""
-        try:
-            response = self.get_from_authorizenet(
-                service, reference_id=reference_id
-            )
-            return str(response.subscription.status)
-        except AuthorizenetControllerExecutionError as error:
-            logger.critical(error)
-            raise
-
-    def get_transactions(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> ObjectifiedElement:
-        try:
-            response = self.get_from_authorizenet(
-                service, include_transactions=True, reference_id=reference_id
-            )
-            print(f"{dir(response) = }")
-            return response
-        except AuthorizenetControllerExecutionError as error:
-            logger.critical(error)
-            raise
-
     @typing.override
     def create_in_authorizenet(
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> int:
         try:
-            interval = apicontractsv1.paymentScheduleTypeInterval()
-            interval.length = str(self.interval_length)
-            interval.unit = str(self.interval_unit)
-            subscription = self._generate_contract()
-            subscription.paymentSchedule.interval = interval
+            contract = self._generate_arb_subscription()
+            contract.paymentSchedule.interval = self._generate_interval()
+            print(f"{contract.name = }")
+            print(f"{contract.amount = }")
+            print(f"{contract.trialAmount = }")
+            print(f"{contract.paymentSchedule.totalOccurrences = }")
+            print(f"{contract.paymentSchedule.trialOccurrences = }")
+            print(f"{contract.paymentSchedule.startDate = }")
+            print(f"{contract.paymentSchedule.interval.length = }")
+            print(f"{contract.paymentSchedule.interval.unit = }")
+            print(f"{contract.profile.customerProfileId = }")
+            print(f"{contract.profile.customerAddressId = }")
+            print(f"{contract.profile.customerPaymentProfileId = }")
             response = service.execute(
-                api.create_subscription(subscription=subscription),
+                api.create_subscription(subscription=contract),
                 reference_id=reference_id,
             )
             return int(response.subscriptionId)
@@ -154,8 +129,8 @@ class Subscription(AuthorizenetModel):
     def get_from_authorizenet(
         self,
         service: AuthorizenetService,
-        include_transactions: bool = False,
         reference_id: str | None = None,
+        include_transactions: bool = False,
     ) -> ObjectifiedElement:
         try:
             return service.execute(
@@ -180,7 +155,7 @@ class Subscription(AuthorizenetModel):
             service.execute(
                 api.update_subscription(
                     subscription_id=self.pk,
-                    subscription=self._generate_contract(),
+                    subscription=self._generate_arb_subscription(),
                 ),
                 reference_id=reference_id,
             )
@@ -201,6 +176,12 @@ class Subscription(AuthorizenetModel):
             logger.critical(error)
             raise
 
+    @typing.override
+    def sync_with_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
+        pass
+
     def _generate_profile(self) -> apicontractsv1.customerProfileIdType:
         """Returns an Authorizenet customer profile id element."""
         profile = apicontractsv1.customerProfileIdType()
@@ -208,6 +189,13 @@ class Subscription(AuthorizenetModel):
         profile.customerPaymentProfileId = str(self.pprofile.pk)
         profile.customerAddressId = str(self.aprofile.pk)
         return profile
+
+    def _generate_interval(self) -> apicontractsv1.paymentScheduleTypeInterval:
+        """Returns an Authorizenet payment schedule interval element."""
+        interval = apicontractsv1.paymentScheduleTypeInterval()
+        interval.length = str(self.interval_length)
+        interval.unit = str(self.interval_unit)
+        return interval
 
     def _generate_schedule(self) -> apicontractsv1.paymentScheduleType:
         """Returns an Authorizenet payment schedule element."""
@@ -217,12 +205,12 @@ class Subscription(AuthorizenetModel):
         schedule.trialOccurrences = str(self.trial_occurrences)
         return schedule
 
-    def _generate_contract(self) -> apicontractsv1.ARBSubscriptionType:
+    def _generate_arb_subscription(self) -> apicontractsv1.ARBSubscriptionType:
         """Returns an Authorizenet ARBSubscription element."""
-        contract = apicontractsv1.ARBSubscriptionType()
-        contract.name = self.name
-        contract.amount = self.amount
-        contract.trialAmount = self.trial_amount
-        contract.paymentSchedule = self._generate_schedule()
-        contract.profile = self._generate_profile()
-        return contract
+        arb_subscription = apicontractsv1.ARBSubscriptionType()
+        arb_subscription.name = self.name
+        arb_subscription.amount = self.amount
+        arb_subscription.trialAmount = self.trial_amount
+        arb_subscription.paymentSchedule = self._generate_schedule()
+        arb_subscription.profile = self._generate_profile()
+        return arb_subscription
