@@ -44,8 +44,8 @@ class CustomerPaymentProfile(AuthorizenetModel):
     card_code = models.CharField(max_length=4, blank=True, null=True)
     card_type = models.CharField(blank=True)
 
-    account_number = models.CharField(max_length=9, blank=True)
-    routing_number = models.CharField(max_length=17, blank=True)
+    account_number = models.CharField(max_length=17, blank=True)
+    routing_number = models.CharField(max_length=9, blank=True)
     account_name = models.CharField(max_length=22, blank=True)
     bank_name = models.CharField(max_length=50, blank=True)
     account_type = models.CharField(
@@ -85,11 +85,13 @@ class CustomerPaymentProfile(AuthorizenetModel):
     @typing.override
     def save(self, **kwargs) -> None:
         super().save(**kwargs)
-        if self.pk and self.card_number:
-            last_4 = self.card_number[-4:]
-            self.card_number = f"XXXX{last_4}"
-            self.card_code = None
+        if self.pk:
+            if self.card_number:
+                self.card_number = f"XXXX{self.card_number[-4:]}"
+            if self.card_code:
+                self.card_code = None
         super().save(**kwargs)
+        return
 
     @typing.override
     def create_in_authorizenet(
