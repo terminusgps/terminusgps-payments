@@ -1,16 +1,18 @@
 [project]
 name = "terminusgps-payments"
-version = "3.0.0"
+version = "4.2.1"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "authorizenet>=1.1.6",
     "django-encrypted-field>=1.0.5",
-    "django>=5.2.7",
+    "django>=6.0.1",
     "psycopg>=3.2.10",
-    "python-terminusgps>=49.3.0",
+    "python-dateutil>=2.9.0.post0",
+    "python-terminusgps>=50.2.1",
 ]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

@@ -1,46 +1,71 @@
-from django.contrib.auth import get_user_model
+from authorizenet import apicontractsv1
 from django.db import models
-from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from lxml.objectify import ObjectifiedElement
+from terminusgps.authorizenet import api
+from terminusgps.authorizenet.service import AuthorizenetService
+
+from .base import AuthorizenetModel
 
 
-class CustomerProfile(models.Model):
-    """An Authorizenet customer profile."""
-
-    id = models.BigIntegerField(primary_key=True)
-    """Authorizenet customer profile id."""
-    user = models.OneToOneField(
-        get_user_model(),
-        on_delete=models.CASCADE,
-        related_name="customer_profile",
-    )
-    """Associated user."""
+class CustomerProfile(AuthorizenetModel):
+    email = models.EmailField(blank=True, max_length=255)
+    merchant_id = models.CharField(blank=True, max_length=20)
+    description = models.TextField(blank=True, max_length=255)
 
     class Meta:
         verbose_name = _("customer profile")
         verbose_name_plural = _("customer profiles")
 
     def __str__(self) -> str:
-        """Returns the customer's username."""
-        return self.user.username
+        """Returns 'CustomerProfile #<pk>'."""
+        return f"CustomerProfile #{self.pk}"
 
-    def get_absolute_url(self) -> str:
-        return reverse(
-            "terminusgps_payments:detail customer profile",
-            kwargs={"profile_pk": self.pk},
+    def _extract_id(self, elem: ObjectifiedElement) -> int:
+        return int(elem.customerProfileId)
+
+    def push(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> ObjectifiedElement:
+        if not self.pk:
+            return service.execute(
+                api.create_customer_profile(
+                    merchant_id=str(self.merchant_id),
+                    email=str(self.email),
+                    description=str(self.description),
+                ),
+                reference_id=reference_id,
+            )
+        else:
+            profile = apicontractsv1.customerProfileExType()
+            profile.customerProfileId = str(self.pk)
+            profile.merchantCustomerId = str(self.merchant_id)
+            profile.description = str(self.description)
+            profile.email = str(self.email)
+            return service.execute(
+                api.update_customer_profile(profile=profile),
+                reference_id=reference_id,
+            )
+
+    def pull(
+        self,
+        service: AuthorizenetService,
+        reference_id: str | None = None,
+        include_issuer_info: bool = False,
+    ) -> ObjectifiedElement:
+        return service.execute(
+            api.get_customer_profile(
+                customer_profile_id=self.pk,
+                include_issuer_info=include_issuer_info,
+            ),
+            reference_id=reference_id,
         )
 
-    @property
-    def merchant_id(self) -> str:
-        """Merchant-designated id for Authorizenet API calls."""
-        return str(self.user.pk)
-
-    @property
-    def email(self) -> str:
-        """Customer email address."""
-        return self.user.email
-
-    @property
-    def description(self) -> str:
-        """Customer full name (first + last)."""
-        return f"{self.user.first_name} {self.user.last_name}"
+    def sync(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
+        resp = self.pull(service, reference_id=reference_id)
+        self.merchant_id = str(resp.profile.merchantCustomerId)
+        self.email = str(resp.profile.email)
+        self.description = str(resp.profile.description)
+        return
