@@ -5,20 +5,20 @@ from . import models
 
 @admin.register(models.CustomerProfile)
 class CustomerProfileAdmin(admin.ModelAdmin):
-    list_display = ["user"]
+    list_display = ["id"]
 
 
 @admin.register(models.CustomerPaymentProfile)
 class CustomerPaymentProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "cprofile__user"]
+    list_display = ["id"]
 
 
 @admin.register(models.CustomerAddressProfile)
 class CustomerAddressProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "cprofile__user"]
+    list_display = ["id"]
 
 
 @admin.register(models.Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ["name", "amount", "status", "cprofile__user"]
+    list_display = ["name", "amount", "status"]
     list_filter = ["status"]
