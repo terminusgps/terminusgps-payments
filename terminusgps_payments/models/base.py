@@ -9,9 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuthorizenetModel(models.Model):
-    id = models.PositiveBigIntegerField(
-        primary_key=True, blank=True, editable=False
-    )
+    id = models.PositiveBigIntegerField(primary_key=True, blank=True)
     """Authorizenet object id."""
 
     class Meta:
@@ -19,7 +17,7 @@ class AuthorizenetModel(models.Model):
 
     def save(self, **kwargs) -> None:
         service = AuthorizenetService()
-        if not kwargs.pop("push", False):
+        if self.pk and not kwargs.pop("push", False):
             logger.debug(f"Syncing #{self.pk} with Authorizenet...")
             self.sync(service)
         else:

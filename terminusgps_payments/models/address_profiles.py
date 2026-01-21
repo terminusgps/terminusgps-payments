@@ -82,14 +82,17 @@ class CustomerAddressProfile(AuthorizenetModel):
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> None:
         resp = self.pull(service, reference_id=reference_id)
-        self.is_default = bool(resp.defaultShippingAddress)
         self.first_name = str(resp.address.firstName)
         self.last_name = str(resp.address.lastName)
-        self.company = str(resp.address.company)
         self.address = str(resp.address.address)
         self.city = str(resp.address.city)
         self.state = str(resp.address.state)
         self.zip = str(resp.address.zip)
         self.country = str(resp.address.country)
-        self.phone_number = str(resp.address.phoneNumber)
+        if company := getattr(resp.address, "company", None):
+            self.company = str(company)
+        if phone := getattr(resp.address, "phoneNumber", None):
+            self.phone_number = str(phone)
+        if default := getattr(resp, "defaultShippingAddress", None):
+            self.is_default = bool(default)
         return
