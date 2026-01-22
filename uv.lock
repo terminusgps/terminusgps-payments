@@ -717,7 +717,7 @@ wheels = [
 
 [[package]]
 name = "terminusgps-payments"
-version = "4.4.2"
+version = "4.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "authorizenet" },
