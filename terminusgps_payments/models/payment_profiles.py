@@ -56,6 +56,14 @@ class CustomerPaymentProfile(AuthorizenetModel):
         verbose_name = _("payment profile")
         verbose_name_plural = _("payment profiles")
 
+    def __str__(self) -> str:
+        if self.card_number and self.card_type:
+            return f"{self.card_type} {self.card_number}"
+        elif self.account_type and self.bank_name:
+            return f"{self.bank_name} {self.account_type}"
+        else:
+            return str(self.pk)
+
     def save(self, **kwargs) -> None:
         super().save(**kwargs)
         if self.pk:

@@ -30,6 +30,11 @@ class CustomerAddressProfile(AuthorizenetModel):
         verbose_name = _("address profile")
         verbose_name_plural = _("address profiles")
 
+    def __str__(self) -> str:
+        if self.address:
+            return self.address
+        return str(self.pk)
+
     def _extract_id(self, elem: ObjectifiedElement) -> int:
         return int(elem.customerAddressId)
 
