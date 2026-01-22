@@ -20,12 +20,13 @@ class AuthorizenetModel(models.Model):
         if self.pk and not kwargs.pop("push", False):
             logger.debug(f"Syncing #{self.pk} with Authorizenet...")
             self.sync(service)
+            logger.debug(f"Synced #{self.pk} with Authorizenet.")
         else:
             logger.debug(f"Pushing #{self.pk} to Authorizenet...")
             resp = self.push(service)
             if not self.pk:
                 self.pk = self._extract_id(resp)
-                logger.debug(f"Created #{self.pk} in Authorizenet...")
+            logger.debug(f"Pushed #{self.pk} to Authorizenet.")
         return super().save(**kwargs)
 
     @abc.abstractmethod
