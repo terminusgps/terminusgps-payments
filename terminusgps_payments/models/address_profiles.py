@@ -1,5 +1,3 @@
-import warnings
-
 from authorizenet import apicontractsv1
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -40,25 +38,27 @@ class CustomerAddressProfile(AuthorizenetModel):
     def _extract_id(self, elem: ObjectifiedElement) -> int:
         return int(elem.customerAddressId)
 
+    def _get_contract(self) -> apicontractsv1.customerAddressType:
+        contract = apicontractsv1.customerAddressType()
+        contract.firstName = str(self.first_name)
+        contract.lastName = str(self.last_name)
+        contract.company = str(self.company)
+        contract.address = str(self.address)
+        contract.city = str(self.city)
+        contract.state = str(self.state)
+        contract.zip = str(self.zip)
+        contract.country = str(self.country)
+        contract.phoneNumber = str(self.phone_number)
+        return contract
+
     def push(
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> ObjectifiedElement:
-        address = apicontractsv1.customerAddressType()
-        address.firstName = str(self.first_name)
-        address.lastName = str(self.last_name)
-        address.company = str(self.company)
-        address.address = str(self.address)
-        address.city = str(self.city)
-        address.state = str(self.state)
-        address.zip = str(self.zip)
-        address.country = str(self.country)
-        address.phoneNumber = str(self.phone_number)
-
         if not self.pk:
             return service.execute(
                 api.create_customer_shipping_address(
                     customer_profile_id=self.customer_profile.pk,
-                    address=address,
+                    address=self._get_contract(),
                     default=self.is_default,
                 ),
                 reference_id=reference_id,
@@ -68,7 +68,7 @@ class CustomerAddressProfile(AuthorizenetModel):
                 api.update_customer_shipping_address(
                     customer_profile_id=self.customer_profile.pk,
                     address_profile_id=self.pk,
-                    address=address,
+                    address=self._get_contract(),
                     default=self.is_default,
                 ),
                 reference_id=reference_id,
@@ -88,20 +88,18 @@ class CustomerAddressProfile(AuthorizenetModel):
     def sync(
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> None:
-        with warnings.catch_warnings():
-            warnings.simplefilter(action="ignore", category=FutureWarning)
-            resp = self.pull(service, reference_id=reference_id)
-            self.first_name = str(resp.address.firstName)
-            self.last_name = str(resp.address.lastName)
-            self.address = str(resp.address.address)
-            self.city = str(resp.address.city)
-            self.state = str(resp.address.state)
-            self.zip = str(resp.address.zip)
-            self.country = str(resp.address.country)
-            if company := getattr(resp.address, "company", None):
-                self.company = str(company)
-            if phone := getattr(resp.address, "phoneNumber", None):
-                self.phone_number = str(phone)
-            if default := getattr(resp, "defaultShippingAddress", None):
-                self.is_default = bool(default)
-            return
+        resp = self.pull(service, reference_id=reference_id)
+        if hasattr(resp, "defaultShippingAddress"):
+            self.is_default = bool(resp.defaultShippingAddress)
+        if hasattr(resp, "address"):
+            elem = resp.address
+            self.first_name = str(getattr(elem, "firstName", ""))
+            self.last_name = str(getattr(elem, "lastName", ""))
+            self.company = str(getattr(elem, "company", ""))
+            self.address = str(getattr(elem, "address", ""))
+            self.city = str(getattr(elem, "city", ""))
+            self.state = str(getattr(elem, "state", ""))
+            self.country = str(getattr(elem, "country", ""))
+            self.zip = str(getattr(elem, "zip", ""))
+            self.phone_number = str(getattr(elem, "phoneNumber", ""))
+        return
