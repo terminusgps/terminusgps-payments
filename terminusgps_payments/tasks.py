@@ -9,7 +9,8 @@ from .models import (
 
 
 @task
-def sync_customer_profile_with_authorizenet(customer_profile: CustomerProfile):
+def sync_customer_profile_with_authorizenet(pk):
+    customer_profile = CustomerProfile.objects.get(pk=pk)
     service = AuthorizenetService()
     data = customer_profile.pull(service, reference_id=None)
     if addresses := getattr(data.profile, "shipToList", None):
