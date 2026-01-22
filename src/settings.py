@@ -43,6 +43,10 @@ USE_I18N = False
 USE_TZ = True
 WSGI_APPLICATION = "src.wsgi.application"
 
+TASKS = {
+    "default": {"BACKEND": "django.tasks.backends.immediate.ImmediateBackend"}
+}
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

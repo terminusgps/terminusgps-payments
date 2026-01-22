@@ -1,70 +1,31 @@
 from django.contrib import admin, messages
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
-from terminusgps.authorizenet.service import AuthorizenetService
 
-from . import models
+from . import models, tasks
 
 
 @admin.register(models.CustomerProfile)
 class CustomerProfileAdmin(admin.ModelAdmin):
     list_display = ["merchant_id"]
-    actions = ["sync_addresses", "sync_payments"]
+    actions = ["queue_authorizenet_sync"]
 
     @admin.action(
-        description=_(
-            "Sync selected customer address profiles with Authorizenet"
-        )
+        description=_("Sync selected customer profiles with Authorizenet")
     )
-    def sync_addresses(self, request, queryset):
-        synced = []
-        service = AuthorizenetService()
+    def queue_authorizenet_sync(self, request, queryset):
         for customer_profile in queryset:
-            data = customer_profile.pull(service)
-            if addresses := getattr(data.profile, "shipToList", None):
-                for address in addresses:
-                    address_profile = models.CustomerAddressProfile()
-                    address_profile.pk = int(address.customerAddressId)
-                    address_profile.customer_profile = customer_profile
-                    address_profile.save(push=False)
-                    synced.append(address_profile)
+            tasks.sync_customer_profile_with_authorizenet.enqueue(
+                customer_profile.pk
+            )
         self.message_user(
             request,
             ngettext(
-                _("%d address profile was synced."),
-                _("%d address profiles were synced."),
-                len(synced),
+                _("%d customer profile syncronization was started."),
+                _("%d customer profile syncronizations were started."),
+                len(queryset),
             )
-            % len(synced),
-            messages.SUCCESS,
-        )
-        return
-
-    @admin.action(
-        description=_(
-            "Sync selected customer payment profiles with Authorizenet"
-        )
-    )
-    def sync_payments(self, request, queryset):
-        synced = []
-        service = AuthorizenetService()
-        for customer_profile in queryset:
-            data = customer_profile.pull(service)
-            if payments := getattr(data.profile, "paymentProfiles", None):
-                for payment in payments:
-                    payment_profile = models.CustomerPaymentProfile()
-                    payment_profile.pk = int(payment.customerPaymentProfileId)
-                    payment_profile.customer_profile = customer_profile
-                    payment_profile.save(push=False)
-                    synced.append(payment_profile)
-        self.message_user(
-            request,
-            ngettext(
-                _("%d payment profile was synced."),
-                _("%d payment profiles were synced."),
-                len(synced),
-            )
-            % len(synced),
+            % len(queryset),
             messages.SUCCESS,
         )
         return
