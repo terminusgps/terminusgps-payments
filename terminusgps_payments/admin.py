@@ -8,7 +8,7 @@ from . import models
 
 @admin.register(models.CustomerProfile)
 class CustomerProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "merchant_id", "email"]
+    list_display = ["merchant_id"]
     actions = ["sync_addresses", "sync_payments"]
 
     @admin.action(
