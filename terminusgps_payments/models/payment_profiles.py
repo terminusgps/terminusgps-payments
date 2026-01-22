@@ -160,26 +160,29 @@ class CustomerPaymentProfile(AuthorizenetModel):
     ) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=FutureWarning)
-
-        resp = self.pull(service, reference_id=reference_id)
-        self.is_default = bool(resp.paymentProfile.defaultPaymentProfile)
-        self.first_name = str(resp.paymentProfile.billTo.firstName)
-        self.last_name = str(resp.paymentProfile.billTo.lastName)
-        self.company = str(resp.paymentProfile.billTo.company)
-        self.address = str(resp.paymentProfile.billTo.address)
-        self.city = str(resp.paymentProfile.billTo.city)
-        self.state = str(resp.paymentProfile.billTo.state)
-        self.zip = str(resp.paymentProfile.billTo.zip)
-        self.country = str(resp.paymentProfile.billTo.country)
-        self.phone_number = str(resp.paymentProfile.billTo.phoneNumber)
-        if card := getattr(resp.paymentProfile.payment, "creditCard", None):
-            self.card_number = str(card.cardNumber)
-            self.card_type = str(card.cardType)
-        if acc := getattr(resp.paymentProfile.payment, "bankAccount", None):
-            self.account_type = str(acc.accountType)
-            self.routing_number = str(acc.routingNumber)
-            self.account_number = str(acc.accountNumber)
-            self.account_name = str(acc.nameOnAccount)
-            self.echeck_type = str(acc.eCheckType)
-            self.bank_name = str(acc.bankName)
-        return
+            resp = self.pull(service, reference_id=reference_id)
+            self.is_default = bool(resp.paymentProfile.defaultPaymentProfile)
+            self.first_name = str(resp.paymentProfile.billTo.firstName)
+            self.last_name = str(resp.paymentProfile.billTo.lastName)
+            self.company = str(resp.paymentProfile.billTo.company)
+            self.address = str(resp.paymentProfile.billTo.address)
+            self.city = str(resp.paymentProfile.billTo.city)
+            self.state = str(resp.paymentProfile.billTo.state)
+            self.zip = str(resp.paymentProfile.billTo.zip)
+            self.country = str(resp.paymentProfile.billTo.country)
+            self.phone_number = str(resp.paymentProfile.billTo.phoneNumber)
+            if card := getattr(
+                resp.paymentProfile.payment, "creditCard", None
+            ):
+                self.card_number = str(card.cardNumber)
+                self.card_type = str(card.cardType)
+            if acc := getattr(
+                resp.paymentProfile.payment, "bankAccount", None
+            ):
+                self.account_type = str(acc.accountType)
+                self.routing_number = str(acc.routingNumber)
+                self.account_number = str(acc.accountNumber)
+                self.account_name = str(acc.nameOnAccount)
+                self.echeck_type = str(acc.eCheckType)
+                self.bank_name = str(acc.bankName)
+            return

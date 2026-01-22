@@ -90,19 +90,18 @@ class CustomerAddressProfile(AuthorizenetModel):
     ) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=FutureWarning)
-
-        resp = self.pull(service, reference_id=reference_id)
-        self.first_name = str(resp.address.firstName)
-        self.last_name = str(resp.address.lastName)
-        self.address = str(resp.address.address)
-        self.city = str(resp.address.city)
-        self.state = str(resp.address.state)
-        self.zip = str(resp.address.zip)
-        self.country = str(resp.address.country)
-        if company := getattr(resp.address, "company", None):
-            self.company = str(company)
-        if phone := getattr(resp.address, "phoneNumber", None):
-            self.phone_number = str(phone)
-        if default := getattr(resp, "defaultShippingAddress", None):
-            self.is_default = bool(default)
-        return
+            resp = self.pull(service, reference_id=reference_id)
+            self.first_name = str(resp.address.firstName)
+            self.last_name = str(resp.address.lastName)
+            self.address = str(resp.address.address)
+            self.city = str(resp.address.city)
+            self.state = str(resp.address.state)
+            self.zip = str(resp.address.zip)
+            self.country = str(resp.address.country)
+            if company := getattr(resp.address, "company", None):
+                self.company = str(company)
+            if phone := getattr(resp.address, "phoneNumber", None):
+                self.phone_number = str(phone)
+            if default := getattr(resp, "defaultShippingAddress", None):
+                self.is_default = bool(default)
+            return
