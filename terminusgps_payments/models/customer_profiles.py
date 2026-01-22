@@ -18,8 +18,11 @@ class CustomerProfile(AuthorizenetModel):
         verbose_name_plural = _("customer profiles")
 
     def __str__(self) -> str:
-        """Returns 'CustomerProfile #<pk>'."""
-        return f"CustomerProfile #{self.pk}"
+        return (
+            str(self.merchant_id)
+            if self.merchant_id
+            else f"CustomerProfile #{self.pk}"
+        )
 
     def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
         return int(elem.customerProfileId)
