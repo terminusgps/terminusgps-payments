@@ -1,4 +1,5 @@
 import logging
+import warnings
 
 from authorizenet import apicontractsv1
 from django.db import models
@@ -157,6 +158,9 @@ class CustomerPaymentProfile(AuthorizenetModel):
     def sync(
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=FutureWarning)
+
         resp = self.pull(service, reference_id=reference_id)
         self.is_default = bool(resp.paymentProfile.defaultPaymentProfile)
         self.first_name = str(resp.paymentProfile.billTo.firstName)
