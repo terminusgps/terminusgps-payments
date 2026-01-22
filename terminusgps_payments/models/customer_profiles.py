@@ -21,7 +21,7 @@ class CustomerProfile(AuthorizenetModel):
         """Returns 'CustomerProfile #<pk>'."""
         return f"CustomerProfile #{self.pk}"
 
-    def _extract_id(self, elem: ObjectifiedElement) -> int:
+    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
         return int(elem.customerProfileId)
 
     def push(

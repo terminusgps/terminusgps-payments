@@ -25,12 +25,12 @@ class AuthorizenetModel(models.Model):
             logger.debug(f"Pushing #{self.pk} to Authorizenet...")
             resp = self.push(service)
             if not self.pk:
-                self.pk = self._extract_id(resp)
+                self.pk = self._extract_authorizenet_id(resp)
             logger.debug(f"Pushed #{self.pk} to Authorizenet.")
         return super().save(**kwargs)
 
     @abc.abstractmethod
-    def _extract_id(self, elem: ObjectifiedElement) -> int:
+    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
         raise NotImplementedError("Subclasses must implement this method.")
 
     @abc.abstractmethod

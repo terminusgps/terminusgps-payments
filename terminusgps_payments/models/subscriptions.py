@@ -68,6 +68,9 @@ class Subscription(AuthorizenetModel):
         verbose_name = _("subscription")
         verbose_name_plural = _("subscriptions")
 
+    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
+        return int(elem.subscriptionId)
+
     def get_next_payment_date(self) -> datetime.date | None:
         if self.start_date is not None:
             return self.start_date + relativedelta(months=1)
@@ -79,9 +82,6 @@ class Subscription(AuthorizenetModel):
             service, reference_id=reference_id, include_transactions=True
         )
         return getattr(resp, "arbTransactions", None)
-
-    def _extract_id(self, elem: ObjectifiedElement) -> int:
-        return int(elem.subscriptionId)
 
     def pull(
         self,
