@@ -1,6 +1,7 @@
 from authorizenet import apicontractsv1
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth import get_user_model
 from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import AuthorizenetService
@@ -9,6 +10,11 @@ from .base import AuthorizenetModel
 
 
 class CustomerProfile(AuthorizenetModel):
+    user = models.OneToOneField(
+        get_user_model(),
+        related_name="customer_profile",
+        on_delete=models.CASCADE,
+    )
     email = models.EmailField(blank=True, max_length=255)
     merchant_id = models.CharField(blank=True, max_length=20)
     description = models.TextField(blank=True, max_length=255)

@@ -7,7 +7,7 @@ from . import models, tasks
 
 @admin.register(models.CustomerProfile)
 class CustomerProfileAdmin(admin.ModelAdmin):
-    list_display = ["merchant_id"]
+    list_display = ["id", "merchant_id", "email"]
     actions = ["queue_authorizenet_sync"]
 
     @admin.action(
@@ -33,12 +33,12 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(models.CustomerPaymentProfile)
 class CustomerPaymentProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "customer_profile__merchant_id"]
+    list_display = ["id", "customer_profile__merchant_id", "address"]
 
 
 @admin.register(models.CustomerAddressProfile)
 class CustomerAddressProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "customer_profile__merchant_id"]
+    list_display = ["id", "customer_profile__merchant_id", "address"]
 
 
 @admin.register(models.Subscription)
