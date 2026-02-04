@@ -2,6 +2,7 @@ import logging
 
 from authorizenet import apicontractsv1
 from django.db import models
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
@@ -69,16 +70,20 @@ class CustomerPaymentProfile(AuthorizenetModel):
 
     def save(self, **kwargs) -> None:
         super().save(**kwargs)
-        if self.pk:
+        if self.pk and self.card_number:
             self.card_code = ""
-            if self.card_number:
+            if not str(self.card_number).startswith("XXXX"):
                 self.card_number = f"XXXX{self.card_number[-4:]}"
         super().save(**kwargs)
         return
 
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "terminusgps_manager:detail payment profiles",
+            kwargs={"pk": self.pk},
+        )
+
     def delete(self, *args, **kwargs):
-        if not self.pk:
-            return super().delete(*args, **kwargs)
         logger.debug(f"Deleting #{self.pk} in Authorizenet...")
         service = AuthorizenetService()
         deleted = self._delete_in_authorizenet(service)
@@ -114,12 +119,13 @@ class CustomerPaymentProfile(AuthorizenetModel):
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> ObjectifiedElement:
         payment = apicontractsv1.paymentType()
-        if all([self.card_number, self.card_expiry]):
+        if self.card_number:
             payment.creditCard = apicontractsv1.creditCardType()
             payment.creditCard.cardNumber = str(self.card_number)
-            payment.creditCard.expirationDate = self.card_expiry.strftime(
-                format="%Y-%m"
-            )
+            if self.card_expiry is not None:
+                payment.creditCard.expirationDate = self.card_expiry.strftime(
+                    format="%Y-%m"
+                )
             if self.card_code:
                 payment.creditCard.cardCode = str(self.card_code)
         if all(
@@ -133,12 +139,12 @@ class CustomerPaymentProfile(AuthorizenetModel):
             ]
         ):
             payment.bankAccount = apicontractsv1.bankAccountType()
-            payment.bankAccount.accountNumber = str(self.account_number)
-            payment.bankAccount.routingNumber = str(self.routing_number)
-            payment.bankAccount.nameOnAccount = str(self.account_name)
-            payment.bankAccount.bankName = str(self.bank_name)
             payment.bankAccount.accountType = str(self.account_type)
-            payment.bankAccount.eCheckType = str(self.echeck_type)
+            payment.bankAccount.routingNumber = str(self.routing_number)
+            payment.bankAccount.accountNumber = str(self.account_number)
+            payment.bankAccount.nameOnAccount = str(self.account_name)
+            payment.bankAccount.echeckType = str(self.echeck_type)
+            payment.bankAccount.bankName = str(self.bank_name)
 
         address = apicontractsv1.customerAddressType()
         address.firstName = str(self.first_name)
@@ -188,35 +194,31 @@ class CustomerPaymentProfile(AuthorizenetModel):
             reference_id=reference_id,
         )
 
-    def sync(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> None:
-        resp = self.pull(service, reference_id=reference_id)
-        if hasattr(resp, "defaultPaymentProfile"):
-            self.is_default = bool(resp.defaultPaymentProfile)
-        if hasattr(resp, "paymentProfile"):
-            if hasattr(resp.paymentProfile, "billTo"):
-                elem = resp.paymentProfile.billTo
-                self.first_name = str(getattr(elem, "firstName", ""))
-                self.last_name = str(getattr(elem, "lastName", ""))
-                self.company = str(getattr(elem, "company", ""))
-                self.address = str(getattr(elem, "address", ""))
-                self.city = str(getattr(elem, "city", ""))
-                self.state = str(getattr(elem, "state", ""))
-                self.country = str(getattr(elem, "country", ""))
-                self.zip = str(getattr(elem, "zip", ""))
-                self.phone_number = str(getattr(elem, "phoneNumber", ""))
-            if hasattr(resp.paymentProfile, "payment"):
-                if hasattr(resp.paymentProfile.payment, "creditCard"):
-                    elem = resp.paymentProfile.payment.creditCard
-                    self.card_number = getattr(elem, "cardNumber", "")
-                    self.card_type = getattr(elem, "cardType", "")
-                if hasattr(resp.paymentProfile.payment, "bankAccount"):
-                    elem = resp.paymentProfile.payment.bankAccount
-                    self.account_type = getattr(elem, "accountType", "")
-                    self.account_number = getattr(elem, "accountNumber", "")
-                    self.routing_number = getattr(elem, "routingNumber", "")
-                    self.account_name = getattr(elem, "nameOnAccount", "")
-                    self.echeck_type = getattr(elem, "eCheckType", "")
-                    self.bank_name = getattr(elem, "bankName", "")
+    def sync(self, elem: ObjectifiedElement) -> None:
+        if hasattr(elem, "defaultPaymentProfile"):
+            self.is_default = bool(getattr(elem, "defaultPaymentProfile"))
+        if hasattr(elem, "billTo"):
+            self.first_name = getattr(elem.billTo, "firstName", "")
+            self.last_name = getattr(elem.billTo, "lastName", "")
+            self.company = getattr(elem.billTo, "company", "")
+            self.address = getattr(elem.billTo, "address", "")
+            self.city = getattr(elem.billTo, "city", "")
+            self.state = getattr(elem.billTo, "state", "")
+            self.country = getattr(elem.billTo, "country", "")
+            self.zip = getattr(elem.billTo, "zip", "")
+            self.phone_number = getattr(elem.billTo, "phoneNumber", "")
+        if hasattr(elem, "paymentProfile"):
+            if hasattr(elem.paymentProfile, "payment"):
+                if hasattr(elem.paymentProfile.payment, "creditCard"):
+                    ca = elem.paymentProfile.payment.creditCard
+                    self.card_number = str(getattr(ca, "cardNumber", ""))
+                    self.card_type = str(getattr(ca, "cardType", ""))
+                if hasattr(elem.paymentProfile.payment, "bankAccount"):
+                    ba = elem.paymentProfile.payment.bankAccount
+                    self.account_type = str(getattr(ba, "accountType", ""))
+                    self.account_number = str(getattr(ba, "accountNumber", ""))
+                    self.routing_number = str(getattr(ba, "routingNumber", ""))
+                    self.account_name = str(getattr(ba, "nameOnAccount", ""))
+                    self.echeck_type = str(getattr(ba, "eCheckType", ""))
+                    self.bank_name = str(getattr(ba, "bankName", ""))
         return

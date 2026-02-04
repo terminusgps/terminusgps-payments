@@ -1,12 +1,14 @@
 import datetime
 
 from django import forms
+from django.core.exceptions import ValidationError
+from django.forms import widgets
 from django.utils.translation import gettext_lazy as _
 
 from . import models
 
 
-class ExpirationDateWidget(forms.widgets.MultiWidget):
+class ExpirationDateWidget(widgets.MultiWidget):
     def __init__(self, **kwargs) -> None:
         return super().__init__(**kwargs)
 
@@ -52,7 +54,7 @@ class CustomerAddressProfileCreateForm(forms.ModelForm):
             "phone_number",
             "customer_profile",
         ]
-        widgets = {"customer_profile": forms.widgets.HiddenInput()}
+        widgets = {"customer_profile": widgets.HiddenInput()}
         help_texts = {
             "first_name": _("Enter a first name."),
             "last_name": _("Enter a last name."),
@@ -66,6 +68,23 @@ class CustomerAddressProfileCreateForm(forms.ModelForm):
                 "Optional. Enter an E.164-formatted phone number. Ex: 17139045262"
             ),
         }
+
+    def clean(self) -> None:
+        super().clean()
+        required = (
+            "first_name",
+            "last_name",
+            "address",
+            "city",
+            "state",
+            "country",
+            "zip",
+        )
+        for field, val in self.cleaned_data.copy().items():
+            if not val and field in required:
+                self.add_error(
+                    field, ValidationError(_("This field is required."))
+                )
 
 
 class CustomerPaymentProfileCreateForm(forms.ModelForm):
@@ -113,4 +132,54 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
             "bank_name": _("Enter a bank name."),
             "account_type": _("Select a bank account type."),
         }
-        widgets = {"customer_profile": forms.widgets.HiddenInput()}
+        widgets = {
+            "card_expiry": ExpirationDateWidget(
+                widgets={
+                    "month": widgets.DateInput(format=["%m"]),
+                    "year": widgets.DateInput(format=["%y"]),
+                }
+            ),
+            "customer_profile": widgets.HiddenInput(),
+        }
+
+    def clean(self) -> None:
+        def clean_fieldset(fieldset, require_all=False):
+            if (
+                any(fieldset.values())
+                and not all(fieldset.values())
+                or require_all
+                and not all(fieldset.values())
+            ):
+                for field, val in fieldset.items():
+                    if not val or require_all:
+                        self.add_error(
+                            field,
+                            ValidationError(_("This field is required.")),
+                        )
+
+        super().clean()
+        address_fieldset = {
+            "first_name": self.cleaned_data.get("first_name"),
+            "last_name": self.cleaned_data.get("last_name"),
+            "address": self.cleaned_data.get("address"),
+            "city": self.cleaned_data.get("city"),
+            "state": self.cleaned_data.get("state"),
+            "country": self.cleaned_data.get("country"),
+            "zip": self.cleaned_data.get("zip"),
+        }
+        credit_card_fieldset = {
+            "card_number": self.cleaned_data.get("card_number"),
+            "card_expiry": self.cleaned_data.get("card_expiry"),
+            "card_code": self.cleaned_data.get("card_code"),
+        }
+        bank_account_fieldset = {
+            "account_number": self.cleaned_data.get("account_number"),
+            "routing_number": self.cleaned_data.get("routing_number"),
+            "account_name": self.cleaned_data.get("account_name"),
+            "account_type": self.cleaned_data.get("account_type"),
+            "bank_name": self.cleaned_data.get("bank_name"),
+        }
+
+        clean_fieldset(address_fieldset, require_all=True)
+        clean_fieldset(credit_card_fieldset)
+        clean_fieldset(bank_account_fieldset)

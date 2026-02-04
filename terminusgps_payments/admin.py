@@ -15,9 +15,7 @@ class CustomerProfileAdmin(admin.ModelAdmin):
     )
     def queue_authorizenet_sync(self, request, queryset):
         for customer_profile in queryset:
-            tasks.sync_customer_profile_with_authorizenet.enqueue(
-                customer_profile.pk
-            )
+            tasks.sync_customer_profile.enqueue(customer_profile.pk)
         self.message_user(
             request,
             ngettext(

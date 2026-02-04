@@ -28,22 +28,24 @@ def sync_customer_subprofile(
         if not hasattr(anet_data.profile, list_attr):
             qs.delete()
         else:
-            ids = [
+            id_list = [
                 int(getattr(subprofile, id_attr))
                 for subprofile in getattr(anet_data.profile, list_attr)
             ]
-            for id in ids:
-                obj = model()
-                obj.pk = id
-                obj.customer_profile = customer_profile
+            for pk in id_list:
+                obj = model(pk=pk, customer_profile=customer_profile)
                 obj.save(push=False)
-            qs.exclude(id__in=ids).delete()
+            qs.exclude(pk__in=id_list).delete()
 
 
 def sync_customer_profile(pk: int) -> None:
     """Syncs a customer profile with Authorizenet by primary key."""
+    try:
+        customer_profile = CustomerProfile.objects.get(pk=pk)
+    except CustomerProfile.DoesNotExist:
+        raise ValueError(f"CustomerProfile with pk #{pk} wasn't found.")
+
     service = AuthorizenetService()
-    customer_profile = CustomerProfile.objects.get(pk=pk)
     anet_data = customer_profile.pull(service, reference_id=None)
     sync_customer_subprofile(
         customer_profile=customer_profile,

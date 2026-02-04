@@ -1,12 +1,19 @@
+import logging
+
 from authorizenet import apicontractsv1
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth import get_user_model
 from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
-from terminusgps.authorizenet.service import AuthorizenetService
+from terminusgps.authorizenet.service import (
+    AuthorizenetControllerExecutionError,
+    AuthorizenetService,
+)
 
 from .base import AuthorizenetModel
+
+logger = logging.getLogger(__name__)
 
 
 class CustomerProfile(AuthorizenetModel):
@@ -32,6 +39,17 @@ class CustomerProfile(AuthorizenetModel):
 
     def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
         return int(elem.customerProfileId)
+
+    def delete(self, *args, **kwargs):
+        logger.debug(f"Deleting #{self.pk} in Authorizenet...")
+        service = AuthorizenetService()
+        deleted = self._delete_in_authorizenet(service)
+        logger.debug(
+            f"Deleted #{self.pk} in Authorizenet."
+            if deleted
+            else f"Failed to delete #{self.pk} in Authorizenet. It was already gone."
+        )
+        return super().delete(*args, **kwargs)
 
     def push(
         self, service: AuthorizenetService, reference_id: str | None = None
@@ -70,11 +88,21 @@ class CustomerProfile(AuthorizenetModel):
             reference_id=reference_id,
         )
 
-    def sync(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> None:
-        resp = self.pull(service, reference_id=reference_id)
-        self.merchant_id = str(resp.profile.merchantCustomerId)
-        self.email = str(resp.profile.email)
-        self.description = str(resp.profile.description)
+    def sync(self, elem: ObjectifiedElement) -> None:
+        if hasattr(elem, "profile"):
+            self.merchant_id = getattr(elem.profile, "merchantCustomerId", "")
+            self.email = getattr(elem.profile, "email", "")
+            self.description = getattr(elem.profile, "description", "")
         return
+
+    def _delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> bool:
+        try:
+            service.execute(
+                api.delete_customer_profile(customer_profile_id=self.pk),
+                reference_id=reference_id,
+            )
+            return True
+        except AuthorizenetControllerExecutionError:
+            return False

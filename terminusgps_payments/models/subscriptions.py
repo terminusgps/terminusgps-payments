@@ -34,15 +34,14 @@ class Subscription(AuthorizenetModel):
         choices=SubscriptionIntervalUnit.choices,
         default=SubscriptionIntervalUnit.MONTHS,
     )
-    start_date = models.DateField(blank=True, default=None, null=True)
+    start_date = models.DateField(blank=True, default=datetime.date.today)
     total_occurrences = models.IntegerField(default=9999)
     trial_occurrences = models.IntegerField(default=0)
-    amount = models.DecimalField(blank=True, decimal_places=2, max_digits=15)
+    amount = models.DecimalField(
+        decimal_places=2, default=decimal.Decimal("24.95"), max_digits=15
+    )
     trial_amount = models.DecimalField(
-        blank=True,
-        decimal_places=2,
-        default=decimal.Decimal("0.00"),
-        max_digits=15,
+        decimal_places=2, default=decimal.Decimal("0.00"), max_digits=15
     )
     status = models.CharField(
         choices=SubscriptionStatus.choices, default=SubscriptionStatus.ACTIVE
@@ -134,21 +133,19 @@ class Subscription(AuthorizenetModel):
                 reference_id=reference_id,
             )
 
-    def sync(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> None:
-        resp = self.pull(service, reference_id=reference_id)
-        self.name = str(resp.subscription.name)
-        self.amount = str(resp.subscription.amount)
-        self.trial_amount = str(resp.subscription.trialAmount)
-        self.status = str(resp.subscription.status)
-        self.total_occurrences = int(
-            resp.subscription.paymentSchedule.totalOccurrences
-        )
-        self.trial_occurrences = int(
-            resp.subscription.paymentSchedule.trialOccurrences
-        )
-        self.start_date = parse_date(
-            str(resp.subscription.paymentSchedule.startDate)
-        )
+    def sync(self, elem: ObjectifiedElement) -> None:
+        if hasattr(elem, "subscription"):
+            self.name = getattr(elem.subscription, "name", "")
+            self.amount = getattr(elem.subscription, "amount", "")
+            self.trial_amount = getattr(elem.subscription, "trailAmount", "")
+            self.status = getattr(elem.subscription, "status", "active")
+            if hasattr(elem.subscription, "paymentSchedule"):
+                sch = elem.subscription.paymentSchedule
+                self.total_occurrences = int(
+                    getattr(sch, "totalOccurrences", 0)
+                )
+                self.trial_occurrences = int(
+                    getattr(sch, "trialOccurrences", 0)
+                )
+                self.start_date = parse_date(getattr(sch, "startDate", ""))
         return

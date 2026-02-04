@@ -1,0 +1,14 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="{% static 'terminusgps_payments/css/output.css' %}"/>
+        <script src="{% static 'terminusgps_payments/js/htmx.min.js' %}" defer></script>
+        <title>{% block title %}{% endblock title %}</title>
+    </head>
+    </body>
+        {% block content %}{% endblock content %}
+    </body>
+</html>

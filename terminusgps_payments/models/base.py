@@ -17,13 +17,14 @@ class AuthorizenetModel(models.Model):
 
     def save(self, **kwargs) -> None:
         service = AuthorizenetService()
-        if self.pk and not kwargs.pop("push", False):
+        ref = kwargs.pop("reference_id", None)
+        if not kwargs.pop("push", False) and self.pk:
             logger.debug(f"Syncing #{self.pk} with Authorizenet...")
-            self.sync(service)
+            elem = self.pull(service, reference_id=ref)
+            self.sync(elem)
             logger.debug(f"Synced #{self.pk} with Authorizenet.")
         else:
-            logger.debug(f"Pushing #{self.pk} to Authorizenet...")
-            resp = self.push(service)
+            resp = self.push(service, reference_id=ref)
             if not self.pk:
                 self.pk = self._extract_authorizenet_id(resp)
             logger.debug(f"Pushed #{self.pk} to Authorizenet.")
@@ -52,10 +53,5 @@ class AuthorizenetModel(models.Model):
         raise NotImplementedError("Subclasses must implement this method.")
 
     @abc.abstractmethod
-    def sync(
-        self,
-        service: AuthorizenetService,
-        reference_id: str | None = None,
-        **kwargs,
-    ) -> None:
+    def sync(self, elem: ObjectifiedElement, **kwargs) -> None:
         raise NotImplementedError("Subclasses must implement this method.")

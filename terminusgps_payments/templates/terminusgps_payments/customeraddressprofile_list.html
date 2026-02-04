@@ -1,0 +1,19 @@
+{% extends "terminusgps_payments/layout.html" %}
+{% block title %}List Address Profiles{% endblock title %}
+{% partialdef content %}
+<ul class="list-disc list-inside">
+{% for profile in object_list %}
+    <a
+        class="hover:underline"
+        href="{{ profile.get_absolute_url }}"
+    >
+        <li>{{ profile }}</li>
+    </a>
+{% empty %}
+    <p>You don't have any address profiles.</p>
+{% endfor %}
+</ul>
+{% endpartialdef content %}
+{% block content %}
+{% partial content %}
+{% endblock content %}

@@ -2,6 +2,7 @@ import logging
 
 from authorizenet import apicontractsv1
 from django.db import models
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
@@ -42,9 +43,13 @@ class CustomerAddressProfile(AuthorizenetModel):
             return str(self.address)
         return f"CustomerAddressProfile #{self.pk}"
 
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "terminusgps_payments:detail address profiles",
+            kwargs={"pk": self.pk},
+        )
+
     def delete(self, *args, **kwargs):
-        if not self.pk:
-            return super().delete(*args, **kwargs)
         logger.debug(f"Deleting #{self.pk} in Authorizenet...")
         service = AuthorizenetService()
         deleted = self._delete_in_authorizenet(service)
@@ -120,21 +125,17 @@ class CustomerAddressProfile(AuthorizenetModel):
             reference_id=reference_id,
         )
 
-    def sync(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> None:
-        resp = self.pull(service, reference_id=reference_id)
-        if hasattr(resp, "defaultShippingAddress"):
-            self.is_default = bool(resp.defaultShippingAddress)
-        if hasattr(resp, "address"):
-            elem = resp.address
-            self.first_name = str(getattr(elem, "firstName", ""))
-            self.last_name = str(getattr(elem, "lastName", ""))
-            self.company = str(getattr(elem, "company", ""))
-            self.address = str(getattr(elem, "address", ""))
-            self.city = str(getattr(elem, "city", ""))
-            self.state = str(getattr(elem, "state", ""))
-            self.country = str(getattr(elem, "country", ""))
-            self.zip = str(getattr(elem, "zip", ""))
-            self.phone_number = str(getattr(elem, "phoneNumber", ""))
+    def sync(self, elem: ObjectifiedElement) -> None:
+        if hasattr(elem, "defaultShippingAddress"):
+            self.is_default = bool(getattr(elem, "defaultShippingAddress"))
+        if hasattr(elem, "address"):
+            self.first_name = getattr(elem.address, "firstName", "")
+            self.last_name = getattr(elem.address, "lastName", "")
+            self.company = getattr(elem.address, "company", "")
+            self.address = getattr(elem.address, "address", "")
+            self.city = getattr(elem.address, "city", "")
+            self.state = getattr(elem.address, "state", "")
+            self.country = getattr(elem.address, "country", "")
+            self.zip = getattr(elem.address, "zip", "")
+            self.phone_number = getattr(elem.address, "phoneNumber", "")
         return
