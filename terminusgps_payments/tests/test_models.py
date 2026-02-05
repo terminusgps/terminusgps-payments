@@ -333,7 +333,7 @@ class CustomerPaymentProfileTestCase(TestCase):
         mock_service = Mock(AuthorizenetService)
 
         self.obj.card_number = "4111111111111111"
-        self.obj.card_expiry = date(year=2039, month=12, day=1)
+        self.obj.card_expiry = date(2039, 12, 1)
         self.obj.card_code = "411"
         self.obj.account_type = "checking"
         self.obj.account_number = "41111111111111111"
