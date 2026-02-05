@@ -1,31 +1,28 @@
 from django.test import RequestFactory, TestCase
 from django.views.generic import TemplateView
 
-from terminusgps_payments.mixins import (
-    AuthorizenetMultipleObjectMixin,
-    AuthorizenetSingleObjectMixin,
-    HtmxTemplateResponseMixin,
-)
-from terminusgps_payments.models import CustomerAddressProfile
+from terminusgps_payments.mixins import HtmxTemplateResponseMixin
 
 
 class HtmxTemplateResponseMixinTestView(
     HtmxTemplateResponseMixin, TemplateView
 ):
-    template_name = "terminusgps_payments/tests/htmxtemplateresponsemixin.html"
-
-
-class AuthorizenetSingleObjectMixinTestView(AuthorizenetSingleObjectMixin):
-    model = CustomerAddressProfile
-
-
-class AuthorizenetMultipleObjectMixinTestView(AuthorizenetMultipleObjectMixin):
-    model = CustomerAddressProfile
+    template_name = "test.html"
 
 
 class HtmxTemplateResponseMixinTestCase(TestCase):
     def setUp(self):
         self.view_cls = HtmxTemplateResponseMixinTestView
+
+    def test_render_to_response_explicit_partial_name(self):
+        """Fails if :py:attr:`template_name` wasn't set to an explicitly provided :py:attr:`partial_name`."""
+        headers = {"HX-Request": "true"}
+        request = RequestFactory().get("/", headers=headers)
+        view = self.view_cls()
+        view.partial_name = "test.html#partial"
+        view.setup(request)
+        view.render_to_response(context=view.get_context_data())
+        self.assertIn("#partial", view.template_name)
 
     def test_render_to_response_htmx_request(self):
         """Fails if :py:attr:`template_name` wasn't updated on an htmx request."""
@@ -34,7 +31,7 @@ class HtmxTemplateResponseMixinTestCase(TestCase):
         view = self.view_cls()
         view.setup(request)
         view.render_to_response(context=view.get_context_data())
-        self.assertIn("#content", view.template_name)
+        self.assertIn("#main", view.template_name)
 
     def test_render_to_response_htmx_request_boosted(self):
         """Fails if :py:attr:`template_name` was updated on a boosted htmx request."""
@@ -43,21 +40,13 @@ class HtmxTemplateResponseMixinTestCase(TestCase):
         view = self.view_cls()
         view.setup(request)
         view.render_to_response(context=view.get_context_data())
-        self.assertNotIn("#content", view.template_name)
+        self.assertNotIn("#main", view.template_name)
 
-    def test_render_to_response_no_htmx_request(self):
+    def test_render_to_response_non_htmx_request(self):
         """Fails if :py:attr:`template_name` was updated on a non-htmx request."""
         headers = {}
         request = RequestFactory().get("/", headers=headers)
         view = self.view_cls()
         view.setup(request)
         view.render_to_response(context=view.get_context_data())
-        self.assertNotIn("#content", view.template_name)
-
-
-class AuthorizenetSingleObjectMixinTestCase(TestCase):
-    def setUp(self):
-        self.view_cls = AuthorizenetSingleObjectMixinTestView
-
-    def test_get_queryset(self):
-        """Fails if :py:meth:`get_queryset` returns another user's Authorizenet profiles."""
+        self.assertNotIn("#main", view.template_name)

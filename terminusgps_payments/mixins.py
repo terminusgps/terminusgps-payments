@@ -5,11 +5,15 @@ from django.views.generic.list import MultipleObjectMixin
 
 
 class HtmxTemplateResponseMixin(TemplateResponseMixin):
+    partial_name: str | None = None
+
     def render_to_response(self, context, **response_kwargs):
         htmx_request = bool(self.request.headers.get("HX-Request"))
         boosted = bool(self.request.headers.get("HX-Boosted"))
         if htmx_request and not boosted:
-            self.template_name = f"{self.template_name}#content"
+            if not self.partial_name:
+                self.partial_name = f"{self.template_name}#main"
+            self.template_name = self.partial_name
         return super().render_to_response(context, **response_kwargs)
 
 

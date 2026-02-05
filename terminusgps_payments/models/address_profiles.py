@@ -1,19 +1,12 @@
-import logging
-
 from authorizenet import apicontractsv1
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from lxml.objectify import ObjectifiedElement
 from terminusgps.authorizenet import api
-from terminusgps.authorizenet.service import (
-    AuthorizenetControllerExecutionError,
-    AuthorizenetService,
-)
+from terminusgps.authorizenet.service import AuthorizenetService
 
 from .base import AuthorizenetModel
-
-logger = logging.getLogger(__name__)
 
 
 class CustomerAddressProfile(AuthorizenetModel):
@@ -49,38 +42,6 @@ class CustomerAddressProfile(AuthorizenetModel):
             kwargs={"pk": self.pk},
         )
 
-    def delete(self, *args, **kwargs):
-        logger.debug(f"Deleting #{self.pk} in Authorizenet...")
-        service = AuthorizenetService()
-        deleted = self._delete_in_authorizenet(service)
-        logger.debug(
-            f"Deleted #{self.pk} in Authorizenet."
-            if deleted
-            else f"Failed to delete #{self.pk} in Authorizenet. It was already gone."
-        )
-        return super().delete(*args, **kwargs)
-
-    def _delete_in_authorizenet(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> bool:
-        try:
-            service.execute(
-                api.delete_customer_shipping_address(
-                    customer_profile_id=self.customer_profile.pk,
-                    address_profile_id=self.pk,
-                ),
-                reference_id=reference_id,
-            )
-            return True
-        except AuthorizenetControllerExecutionError as error:
-            if error.code == "E00040":
-                return False
-            else:
-                raise
-
-    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
-        return int(elem.customerAddressId)
-
     def push(
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> ObjectifiedElement:
@@ -94,36 +55,30 @@ class CustomerAddressProfile(AuthorizenetModel):
         address.zip = str(self.zip)
         address.country = str(self.country)
         address.phoneNumber = str(self.phone_number)
+
         if not self.pk:
-            return service.execute(
-                api.create_customer_shipping_address(
-                    customer_profile_id=self.customer_profile.pk,
-                    address=address,
-                    default=self.is_default,
-                ),
-                reference_id=reference_id,
+            request = api.create_customer_shipping_address(
+                customer_profile_id=self.customer_profile.pk,
+                address=address,
+                default=self.is_default,
             )
         else:
-            return service.execute(
-                api.update_customer_shipping_address(
-                    customer_profile_id=self.customer_profile.pk,
-                    address_profile_id=self.pk,
-                    address=address,
-                    default=self.is_default,
-                ),
-                reference_id=reference_id,
+            request = api.update_customer_shipping_address(
+                customer_profile_id=self.customer_profile.pk,
+                address_profile_id=self.pk,
+                address=address,
+                default=self.is_default,
             )
+        return service.execute(request, reference_id=reference_id)
 
     def pull(
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> ObjectifiedElement:
-        return service.execute(
-            api.get_customer_shipping_address(
-                customer_profile_id=self.customer_profile.pk,
-                address_profile_id=self.pk,
-            ),
-            reference_id=reference_id,
+        request = api.get_customer_shipping_address(
+            customer_profile_id=self.customer_profile.pk,
+            address_profile_id=self.pk,
         )
+        return service.execute(request, reference_id=reference_id)
 
     def sync(self, elem: ObjectifiedElement) -> None:
         if hasattr(elem, "defaultShippingAddress"):
@@ -139,3 +94,15 @@ class CustomerAddressProfile(AuthorizenetModel):
             self.zip = getattr(elem.address, "zip", "")
             self.phone_number = getattr(elem.address, "phoneNumber", "")
         return
+
+    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
+        return int(getattr(elem, "customerAddressId"))
+
+    def _delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
+        request = api.delete_customer_shipping_address(
+            customer_profile_id=self.customer_profile.pk,
+            address_profile_id=self.pk,
+        )
+        service.execute(request, reference_id=reference_id)

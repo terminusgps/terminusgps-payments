@@ -1,9 +1,7 @@
 import datetime
 import decimal
-import logging
 
 from authorizenet import apicontractsv1
-from dateutil.relativedelta import relativedelta
 from django.db import models
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext_lazy as _
@@ -12,8 +10,6 @@ from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import AuthorizenetService
 
 from .base import AuthorizenetModel
-
-logger = logging.getLogger(__name__)
 
 
 class Subscription(AuthorizenetModel):
@@ -67,35 +63,6 @@ class Subscription(AuthorizenetModel):
         verbose_name = _("subscription")
         verbose_name_plural = _("subscriptions")
 
-    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
-        return int(elem.subscriptionId)
-
-    def get_next_payment_date(self) -> datetime.date | None:
-        if self.start_date is not None:
-            return self.start_date + relativedelta(months=1)
-
-    def get_transactions(
-        self, service: AuthorizenetService, reference_id: str | None = None
-    ) -> ObjectifiedElement | None:
-        resp = self.pull(
-            service, reference_id=reference_id, include_transactions=True
-        )
-        return getattr(resp, "arbTransactions", None)
-
-    def pull(
-        self,
-        service: AuthorizenetService,
-        reference_id: str | None = None,
-        include_transactions: bool = True,
-    ) -> ObjectifiedElement:
-        return service.execute(
-            api.get_subscription(
-                subscription_id=self.pk,
-                include_transactions=include_transactions,
-            ),
-            reference_id=reference_id,
-        )
-
     def push(
         self, service: AuthorizenetService, reference_id: str | None = None
     ) -> ObjectifiedElement:
@@ -121,23 +88,29 @@ class Subscription(AuthorizenetModel):
             interval.unit = str(self.interval_unit)
             interval.length = str(self.interval_length)
             subscription.paymentSchedule.interval = interval
-            return service.execute(
-                api.create_subscription(subscription=subscription),
-                reference_id=reference_id,
-            )
+            request = api.create_subscription(subscription=subscription)
         else:
-            return service.execute(
-                api.update_subscription(
-                    subscription_id=self.pk, subscription=subscription
-                ),
-                reference_id=reference_id,
+            request = api.update_subscription(
+                subscription_id=self.pk, subscription=subscription
             )
+        return service.execute(request, reference_id=reference_id)
+
+    def pull(
+        self,
+        service: AuthorizenetService,
+        reference_id: str | None = None,
+        include_transactions: bool = True,
+    ) -> ObjectifiedElement:
+        request = api.get_subscription(
+            subscription_id=self.pk, include_transactions=include_transactions
+        )
+        return service.execute(request, reference_id=reference_id)
 
     def sync(self, elem: ObjectifiedElement) -> None:
         if hasattr(elem, "subscription"):
             self.name = getattr(elem.subscription, "name", "")
             self.amount = getattr(elem.subscription, "amount", "")
-            self.trial_amount = getattr(elem.subscription, "trailAmount", "")
+            self.trial_amount = getattr(elem.subscription, "trialAmount", "")
             self.status = getattr(elem.subscription, "status", "active")
             if hasattr(elem.subscription, "paymentSchedule"):
                 sch = elem.subscription.paymentSchedule
@@ -147,5 +120,16 @@ class Subscription(AuthorizenetModel):
                 self.trial_occurrences = int(
                     getattr(sch, "trialOccurrences", 0)
                 )
-                self.start_date = parse_date(getattr(sch, "startDate", ""))
+                start_date = str(getattr(sch, "startDate", ""))
+                if start_date:
+                    self.start_date = parse_date(start_date)
         return
+
+    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
+        return int(elem.subscriptionId)
+
+    def _delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
+        request = api.cancel_subscription(subscription_id=self.pk)
+        return service.execute(request, reference_id=reference_id)

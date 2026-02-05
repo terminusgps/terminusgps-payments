@@ -16,7 +16,7 @@ class AuthorizenetModel(models.Model):
         abstract = True
 
     def save(self, **kwargs) -> None:
-        service = AuthorizenetService()
+        service = kwargs.pop("service", AuthorizenetService())
         ref = kwargs.pop("reference_id", None)
         if not kwargs.pop("push", False) and self.pk:
             logger.debug(f"Syncing #{self.pk} with Authorizenet...")
@@ -29,10 +29,6 @@ class AuthorizenetModel(models.Model):
                 self.pk = self._extract_authorizenet_id(resp)
             logger.debug(f"Pushed #{self.pk} to Authorizenet.")
         return super().save(**kwargs)
-
-    @abc.abstractmethod
-    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
-        raise NotImplementedError("Subclasses must implement this method.")
 
     @abc.abstractmethod
     def push(
@@ -54,4 +50,14 @@ class AuthorizenetModel(models.Model):
 
     @abc.abstractmethod
     def sync(self, elem: ObjectifiedElement, **kwargs) -> None:
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abc.abstractmethod
+    def _extract_authorizenet_id(self, elem: ObjectifiedElement) -> int:
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    @abc.abstractmethod
+    def _delete_in_authorizenet(
+        self, service: AuthorizenetService, reference_id: str | None = None
+    ) -> None:
         raise NotImplementedError("Subclasses must implement this method.")

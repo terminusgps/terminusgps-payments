@@ -69,23 +69,6 @@ class CustomerAddressProfileCreateForm(forms.ModelForm):
             ),
         }
 
-    def clean(self) -> None:
-        super().clean()
-        required = (
-            "first_name",
-            "last_name",
-            "address",
-            "city",
-            "state",
-            "country",
-            "zip",
-        )
-        for field, val in self.cleaned_data.copy().items():
-            if not val and field in required:
-                self.add_error(
-                    field, ValidationError(_("This field is required."))
-                )
-
 
 class CustomerPaymentProfileCreateForm(forms.ModelForm):
     class Meta:
@@ -142,31 +125,22 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
             "customer_profile": widgets.HiddenInput(),
         }
 
+    def __init__(self, *args, **kwargs):
+        print(f"{args = }")
+        print(f"{kwargs = }")
+        return super().__init__(*args, **kwargs)
+
     def clean(self) -> None:
-        def clean_fieldset(fieldset, require_all=False):
-            if (
-                any(fieldset.values())
-                and not all(fieldset.values())
-                or require_all
-                and not all(fieldset.values())
-            ):
+        def clean_fieldset(fieldset):
+            if any(fieldset.values()) and not all(fieldset.values()):
                 for field, val in fieldset.items():
-                    if not val or require_all:
+                    if not val:
                         self.add_error(
                             field,
                             ValidationError(_("This field is required.")),
                         )
 
         super().clean()
-        address_fieldset = {
-            "first_name": self.cleaned_data.get("first_name"),
-            "last_name": self.cleaned_data.get("last_name"),
-            "address": self.cleaned_data.get("address"),
-            "city": self.cleaned_data.get("city"),
-            "state": self.cleaned_data.get("state"),
-            "country": self.cleaned_data.get("country"),
-            "zip": self.cleaned_data.get("zip"),
-        }
         credit_card_fieldset = {
             "card_number": self.cleaned_data.get("card_number"),
             "card_expiry": self.cleaned_data.get("card_expiry"),
@@ -180,6 +154,5 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
             "bank_name": self.cleaned_data.get("bank_name"),
         }
 
-        clean_fieldset(address_fieldset, require_all=True)
         clean_fieldset(credit_card_fieldset)
         clean_fieldset(bank_account_fieldset)
