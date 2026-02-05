@@ -1,0 +1,12 @@
+[
+  {
+    "model": "terminusgps_payments.CustomerProfile",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "email": "test@domain.com",
+      "merchant_id": "TestMerchantId",
+      "description": "TestDescription"
+    }
+  }
+]

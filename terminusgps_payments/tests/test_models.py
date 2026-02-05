@@ -3,7 +3,6 @@ from datetime import date
 from unittest.mock import Mock
 
 from authorizenet import apicontrollers
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 from lxml import objectify
 from terminusgps.authorizenet.service import AuthorizenetService
@@ -54,22 +53,13 @@ class AuthorizenetModelTestCase(TestCase):
 
 
 class CustomerProfileTestCase(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user_data = {
-            "first_name": "TestFirst",
-            "last_name": "TestLast",
-            "username": "testuser",
-            "password": "super_secure_password1!",
-            "email": "testuser@domain.com",
-        }
-        cls.user = get_user_model().objects.create(**cls.user_data)
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+    ]
 
     def setUp(self):
-        self.obj = CustomerProfile()
-        self.obj.email = self.user_data["email"]
-        self.obj.merchant_id = self.user_data["first_name"]
-        self.obj.description = self.user_data["first_name"]
+        self.obj = CustomerProfile.objects.get(pk=1)
 
     def test___str__(self):
         """Fails if the customer profile's :py:meth:`__str__` method returned unexpected values."""
@@ -81,6 +71,7 @@ class CustomerProfileTestCase(TestCase):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
 
+        self.obj.pk = None
         self.obj.push(mock_service)
 
         expected = apicontrollers.createCustomerProfileController
@@ -153,35 +144,14 @@ class CustomerProfileTestCase(TestCase):
 
 
 class CustomerAddressProfileTestCase(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user_data = {
-            "first_name": "TestFirst",
-            "last_name": "TestLast",
-            "username": "testuser",
-            "password": "super_secure_password1!",
-            "email": "testuser@domain.com",
-        }
-        cls.user = get_user_model().objects.create(**cls.user_data)
-        cls.customer_profile = CustomerProfile()
-        cls.customer_profile.pk = 1
-        cls.customer_profile.user = cls.user
-        cls.customer_profile.email = cls.user_data["email"]
-        cls.customer_profile.merchant_id = cls.user_data["first_name"]
-        cls.customer_profile.description = cls.user_data["first_name"]
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customeraddressprofile.json",
+    ]
 
     def setUp(self):
-        self.obj = CustomerAddressProfile()
-        self.obj.customer_profile = self.customer_profile
-        self.obj.first_name = "TestFirstName"
-        self.obj.last_name = "TestLastName"
-        self.obj.company = "TestCompany"
-        self.obj.address = "TestAddress"
-        self.obj.city = "TestCity"
-        self.obj.state = "TestState"
-        self.obj.country = "TestCountry"
-        self.obj.zip = "TestZip"
-        self.obj.phone_number = "TestPhoneNumber"
+        self.obj = CustomerAddressProfile.objects.get(pk=1)
 
     def test___str__(self):
         """Fails if the address profile's :py:meth:`__str__` method returned unexpected values."""
@@ -194,6 +164,7 @@ class CustomerAddressProfileTestCase(TestCase):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerShippingAddressController`."""
         mock_service = Mock(AuthorizenetService)
 
+        self.obj.pk = None
         self.obj.push(mock_service)
 
         expected = apicontrollers.createCustomerShippingAddressController
@@ -285,39 +256,22 @@ class CustomerAddressProfileTestCase(TestCase):
 
 
 class CustomerPaymentProfileTestCase(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user_data = {
-            "first_name": "TestFirst",
-            "last_name": "TestLast",
-            "username": "testuser",
-            "password": "super_secure_password1!",
-            "email": "testuser@domain.com",
-        }
-        cls.user = get_user_model().objects.create(**cls.user_data)
-        cls.customer_profile = CustomerProfile()
-        cls.customer_profile.pk = 1
-        cls.customer_profile.user = cls.user
-        cls.customer_profile.email = cls.user_data["email"]
-        cls.customer_profile.merchant_id = cls.user_data["first_name"]
-        cls.customer_profile.description = cls.user_data["first_name"]
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+    ]
 
     def setUp(self):
-        self.obj = CustomerPaymentProfile()
-        self.obj.customer_profile = self.customer_profile
-        self.obj.first_name = "TestFirst"
-        self.obj.last_name = "TestLast"
-        self.obj.company = "TestCompany"
-        self.obj.address = "123 Main St"
-        self.obj.city = "Houston"
-        self.obj.state = "TX"
-        self.obj.country = "USA"
-        self.obj.zip = "77065"
-        self.obj.phone_number = "17139045260"
+        self.obj = CustomerPaymentProfile.objects.get(pk=1)
 
     def test___str__(self):
         """Fails if the payment profile's :py:meth:`__str__` method returned unexpected values."""
         self.obj.pk = 1
+        self.obj.card_number = ""
+        self.obj.card_type = ""
+        self.obj.bank_name = ""
+        self.obj.account_type = ""
         self.assertEqual(str(self.obj), "CustomerPaymentProfile #1")
         self.obj.card_number = "XXXX1111"
         self.obj.card_type = "Test"
@@ -332,15 +286,7 @@ class CustomerPaymentProfileTestCase(TestCase):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerPaymentProfileController` for a credit card."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.card_number = "4111111111111111"
-        self.obj.card_expiry = date(2039, 12, 1)
-        self.obj.card_code = "411"
-        self.obj.account_type = "checking"
-        self.obj.account_number = "41111111111111111"
-        self.obj.routing_number = "411111111"
-        self.obj.account_name = "TestAccountName"
-        self.obj.bank_name = "TestBankName"
-        self.obj.echeck_type = "PPD"
+        self.obj.pk = None
         self.obj.push(mock_service)
 
         expected = apicontrollers.createCustomerPaymentProfileController
@@ -352,15 +298,6 @@ class CustomerPaymentProfileTestCase(TestCase):
         mock_service = Mock(AuthorizenetService)
 
         self.obj.pk = 1
-        self.obj.card_number = "4111111111111111"
-        self.obj.card_expiry = date(2039, 12, 1)
-        self.obj.card_code = "411"
-        self.obj.account_type = "checking"
-        self.obj.account_number = "41111111111111111"
-        self.obj.routing_number = "411111111"
-        self.obj.account_name = "TestAccountName"
-        self.obj.bank_name = "TestBankName"
-        self.obj.echeck_type = "PPD"
         self.obj.push(mock_service)
 
         expected = apicontrollers.updateCustomerPaymentProfileController
@@ -520,56 +457,16 @@ class CustomerPaymentProfileTestCase(TestCase):
 
 
 class SubscriptionTestCase(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user_data = {
-            "first_name": "TestFirst",
-            "last_name": "TestLast",
-            "username": "testuser",
-            "password": "super_secure_password1!",
-            "email": "testuser@domain.com",
-        }
-        cls.user = get_user_model().objects.create(**cls.user_data)
-        cls.customer_profile = CustomerProfile()
-        cls.customer_profile.pk = 1
-        cls.customer_profile.user = cls.user
-        cls.customer_profile.email = cls.user_data["email"]
-        cls.customer_profile.merchant_id = cls.user_data["first_name"]
-        cls.customer_profile.description = cls.user_data["first_name"]
-
-        cls.address_profile = CustomerAddressProfile()
-        cls.address_profile.customer_profile = cls.customer_profile
-        cls.address_profile.pk = 1
-        cls.address_profile.first_name = "TestFirstName"
-        cls.address_profile.last_name = "TestLastName"
-        cls.address_profile.company = "TestCompany"
-        cls.address_profile.address = "TestAddress"
-        cls.address_profile.city = "TestCity"
-        cls.address_profile.state = "TestState"
-        cls.address_profile.country = "TestCountry"
-        cls.address_profile.zip = "TestZip"
-        cls.address_profile.phone_number = "TestPhoneNumber"
-
-        cls.payment_profile = CustomerPaymentProfile()
-        cls.payment_profile.customer_profile = cls.customer_profile
-        cls.payment_profile.pk = 1
-        cls.payment_profile.first_name = "TestFirstName"
-        cls.payment_profile.last_name = "TestLastName"
-        cls.payment_profile.company = "TestCompany"
-        cls.payment_profile.address = "TestAddress"
-        cls.payment_profile.city = "TestCity"
-        cls.payment_profile.state = "TestState"
-        cls.payment_profile.country = "TestCountry"
-        cls.payment_profile.zip = "TestZip"
-        cls.payment_profile.phone_number = "TestPhoneNumber"
-        cls.payment_profile.card_number = "TestCardNumber"
-        cls.payment_profile.card_type = "TestCardType"
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+        "terminusgps_payments/tests/test_customeraddressprofile.json",
+        "terminusgps_payments/tests/test_subscription.json",
+    ]
 
     def setUp(self):
-        self.obj = Subscription()
-        self.obj.customer_profile = self.customer_profile
-        self.obj.address_profile = self.address_profile
-        self.obj.payment_profile = self.payment_profile
+        self.obj = Subscription.objects.get(pk=1)
 
     def test_pull(self):
         """Fails if :py:meth:`pull` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.getCustomerProfileController`."""
@@ -586,6 +483,7 @@ class SubscriptionTestCase(TestCase):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
 
+        self.obj.pk = None
         self.obj.push(mock_service)
 
         expected = apicontrollers.ARBCreateSubscriptionController

@@ -1,0 +1,12 @@
+[
+  {
+    "model": "terminusgps_payments.Subscription",
+    "pk": 1,
+    "fields": {
+      "customer_profile": 1,
+      "address_profile": 1,
+      "payment_profile": 1,
+      "name": "TestSubscription"
+    }
+  }
+]

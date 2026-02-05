@@ -1,0 +1,18 @@
+[
+  {
+    "model": "terminusgps_payments.CustomerAddressProfile",
+    "pk": 1,
+    "fields": {
+      "customer_profile": 1,
+      "first_name": "TestFirstName",
+      "last_name": "TestLastName",
+      "company": "TestCompany",
+      "address": "TestAddress",
+      "city": "TestCity",
+      "state": "TestState",
+      "country": "TestCountry",
+      "zip": "TestZip",
+      "phone_number": "TestPhoneNumber"
+    }
+  }
+]
