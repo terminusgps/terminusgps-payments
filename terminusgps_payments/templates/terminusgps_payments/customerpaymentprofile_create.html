@@ -1,12 +1,12 @@
 {% extends "terminusgps_payments/layout.html" %}
 {% block title %}Create Payment Profile{% endblock title %}
-{% partialdef content %}
+{% partialdef main %}
 <form action="{% url 'terminusgps_payments:create payment profiles' %}" method="post">
     {% csrf_token %}
     {{ form }}
     <button type="submit">Submit</button>
 </form>
-{% endpartialdef content %}
+{% endpartialdef main %}
 {% block content %}
-{% partial content %}
+{% partial main %}
 {% endblock content %}

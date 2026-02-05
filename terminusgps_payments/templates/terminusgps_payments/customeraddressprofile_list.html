@@ -1,6 +1,6 @@
 {% extends "terminusgps_payments/layout.html" %}
 {% block title %}List Address Profiles{% endblock title %}
-{% partialdef content %}
+{% partialdef main %}
 <ul class="list-disc list-inside">
 {% for profile in object_list %}
     <a
@@ -13,7 +13,7 @@
     <p>You don't have any address profiles.</p>
 {% endfor %}
 </ul>
-{% endpartialdef content %}
+{% endpartialdef main %}
 {% block content %}
-{% partial content %}
+{% partial main %}
 {% endblock content %}

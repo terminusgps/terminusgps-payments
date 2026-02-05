@@ -1,12 +1,12 @@
 {% extends "terminusgps_payments/layout.html" %}
 {% block title %}List Payment Profiles{% endblock title %}
-{% partialdef content %}
+{% partialdef main %}
 {% for profile in object_list %}
 <a href="{{ profile.get_absolute_url }}">{{ profile.pk }}</a>
 {% empty %}
 <p>You don't have any payment profiles.</p>
 {% endfor %}
-{% endpartialdef content %}
+{% endpartialdef main %}
 {% block content %}
-{% partial content %}
+{% partial main %}
 {% endblock content %}
