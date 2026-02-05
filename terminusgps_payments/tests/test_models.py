@@ -262,32 +262,41 @@ class CustomerPaymentProfileTestCase(TestCase):
         "terminusgps_payments/tests/test_customerpaymentprofile.json",
     ]
 
-    def setUp(self):
-        self.obj = CustomerPaymentProfile.objects.get(pk=1)
-
     def test___str__(self):
         """Fails if the payment profile's :py:meth:`__str__` method returned unexpected values."""
-        self.obj.pk = 1
-        self.obj.card_number = ""
-        self.obj.card_type = ""
-        self.obj.bank_name = ""
-        self.obj.account_type = ""
-        self.assertEqual(str(self.obj), "CustomerPaymentProfile #1")
-        self.obj.card_number = "XXXX1111"
-        self.obj.card_type = "Test"
-        self.assertEqual(str(self.obj), "Test XXXX1111")
-        self.obj.card_number = ""
-        self.obj.card_type = ""
-        self.obj.bank_name = "Test"
-        self.obj.account_type = "checking"
-        self.assertEqual(str(self.obj), "Test checking")
+        cc_customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
+        ba_customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=2)
+        self.assertEqual(
+            str(cc_customerpaymentprofile), "TestCardType XXXX1111"
+        )
+        self.assertEqual(
+            str(ba_customerpaymentprofile), "TestBankName checking"
+        )
+        cc_customerpaymentprofile.card_number = ""
+        cc_customerpaymentprofile.card_type = ""
+        self.assertEqual(
+            str(cc_customerpaymentprofile), "CustomerPaymentProfile #1"
+        )
 
-    def test_push_create(self):
+    def test_push_create_credit_card(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerPaymentProfileController` for a credit card."""
         mock_service = Mock(AuthorizenetService)
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
 
-        self.obj.pk = None
-        self.obj.push(mock_service)
+        customerpaymentprofile.pk = None
+        customerpaymentprofile.push(mock_service)
+
+        expected = apicontrollers.createCustomerPaymentProfileController
+        controller = mock_service.execute.call_args.args[0][1]
+        self.assertEqual(controller, expected)
+
+    def test_push_create_bank_account(self):
+        """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerPaymentProfileController` for a bank account."""
+        mock_service = Mock(AuthorizenetService)
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=2)
+
+        customerpaymentprofile.pk = None
+        customerpaymentprofile.push(mock_service)
 
         expected = apicontrollers.createCustomerPaymentProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -296,9 +305,9 @@ class CustomerPaymentProfileTestCase(TestCase):
     def test_push_update(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.updateCustomerPaymentProfileController`."""
         mock_service = Mock(AuthorizenetService)
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
 
-        self.obj.pk = 1
-        self.obj.push(mock_service)
+        customerpaymentprofile.push(mock_service)
 
         expected = apicontrollers.updateCustomerPaymentProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -307,9 +316,9 @@ class CustomerPaymentProfileTestCase(TestCase):
     def test_pull(self):
         """Fails if :py:meth:`pull` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.getCustomerPaymentProfileController`."""
         mock_service = Mock(AuthorizenetService)
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
 
-        self.obj.pk = 1
-        self.obj.pull(mock_service)
+        customerpaymentprofile.pull(mock_service)
 
         expected = apicontrollers.getCustomerPaymentProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -333,7 +342,8 @@ class CustomerPaymentProfileTestCase(TestCase):
         echeck_type = "eCheckType"
         bank_name = "bankName"
 
-        self.obj.sync(
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=2)
+        customerpaymentprofile.sync(
             elem=objectify.E.root(
                 objectify.E.defaultPaymentProfile(1),
                 objectify.E.billTo(
@@ -362,21 +372,21 @@ class CustomerPaymentProfileTestCase(TestCase):
             )
         )
 
-        self.assertEqual(self.obj.first_name, first_name)
-        self.assertEqual(self.obj.last_name, last_name)
-        self.assertEqual(self.obj.company, company)
-        self.assertEqual(self.obj.address, address)
-        self.assertEqual(self.obj.city, city)
-        self.assertEqual(self.obj.state, state)
-        self.assertEqual(self.obj.country, country)
-        self.assertEqual(self.obj.zip, zip)
-        self.assertEqual(self.obj.phone_number, phone_number)
-        self.assertEqual(self.obj.account_type, account_type)
-        self.assertEqual(self.obj.account_number, account_number)
-        self.assertEqual(self.obj.routing_number, routing_number)
-        self.assertEqual(self.obj.account_name, account_name)
-        self.assertEqual(self.obj.echeck_type, echeck_type)
-        self.assertEqual(self.obj.bank_name, bank_name)
+        self.assertEqual(customerpaymentprofile.first_name, first_name)
+        self.assertEqual(customerpaymentprofile.last_name, last_name)
+        self.assertEqual(customerpaymentprofile.company, company)
+        self.assertEqual(customerpaymentprofile.address, address)
+        self.assertEqual(customerpaymentprofile.city, city)
+        self.assertEqual(customerpaymentprofile.state, state)
+        self.assertEqual(customerpaymentprofile.country, country)
+        self.assertEqual(customerpaymentprofile.zip, zip)
+        self.assertEqual(customerpaymentprofile.phone_number, phone_number)
+        self.assertEqual(customerpaymentprofile.account_type, account_type)
+        self.assertEqual(customerpaymentprofile.account_number, account_number)
+        self.assertEqual(customerpaymentprofile.routing_number, routing_number)
+        self.assertEqual(customerpaymentprofile.account_name, account_name)
+        self.assertEqual(customerpaymentprofile.echeck_type, echeck_type)
+        self.assertEqual(customerpaymentprofile.bank_name, bank_name)
 
     def test_sync_credit_card(self):
         """Fails if payment profile attributes weren't synced on :py:meth:`sync` with a credit card."""
@@ -392,7 +402,8 @@ class CustomerPaymentProfileTestCase(TestCase):
         card_number = "cardNumber"
         card_type = "cardType"
 
-        self.obj.sync(
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
+        customerpaymentprofile.sync(
             elem=objectify.E.root(
                 objectify.E.defaultPaymentProfile(1),
                 objectify.E.billTo(
@@ -417,24 +428,24 @@ class CustomerPaymentProfileTestCase(TestCase):
             )
         )
 
-        self.assertEqual(self.obj.first_name, first_name)
-        self.assertEqual(self.obj.last_name, last_name)
-        self.assertEqual(self.obj.company, company)
-        self.assertEqual(self.obj.address, address)
-        self.assertEqual(self.obj.city, city)
-        self.assertEqual(self.obj.state, state)
-        self.assertEqual(self.obj.country, country)
-        self.assertEqual(self.obj.zip, zip)
-        self.assertEqual(self.obj.phone_number, phone_number)
-        self.assertEqual(self.obj.card_number, card_number)
-        self.assertEqual(self.obj.card_type, card_type)
+        self.assertEqual(customerpaymentprofile.first_name, first_name)
+        self.assertEqual(customerpaymentprofile.last_name, last_name)
+        self.assertEqual(customerpaymentprofile.company, company)
+        self.assertEqual(customerpaymentprofile.address, address)
+        self.assertEqual(customerpaymentprofile.city, city)
+        self.assertEqual(customerpaymentprofile.state, state)
+        self.assertEqual(customerpaymentprofile.country, country)
+        self.assertEqual(customerpaymentprofile.zip, zip)
+        self.assertEqual(customerpaymentprofile.phone_number, phone_number)
+        self.assertEqual(customerpaymentprofile.card_number, card_number)
+        self.assertEqual(customerpaymentprofile.card_type, card_type)
 
     def test__delete_in_authorizenet(self):
         """Fails if :py:meth:`_delete_in_authorizenet` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.deleteCustomerPaymentProfileController`."""
         mock_service = Mock(AuthorizenetService)
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
 
-        self.obj.pk = 1
-        self.obj._delete_in_authorizenet(mock_service)
+        customerpaymentprofile._delete_in_authorizenet(mock_service)
 
         expected = apicontrollers.deleteCustomerPaymentProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -442,14 +453,15 @@ class CustomerPaymentProfileTestCase(TestCase):
 
     def test__extract_authorizenet_id(self):
         """Fails if :py:meth:`_extract_authorizenet_id` returns a non-integer."""
-        expected = 1
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
+        expected_pk = 123
         mock_element = objectify.E.root(
-            objectify.E.customerPaymentProfileId(str(expected))
+            objectify.E.customerPaymentProfileId(str(expected_pk))
         )
 
-        result = self.obj._extract_authorizenet_id(mock_element)
+        result = customerpaymentprofile._extract_authorizenet_id(mock_element)
         self.assertIsInstance(result, int)
-        self.assertEqual(result, 1)
+        self.assertEqual(result, expected_pk)
 
     def test_save_obfuscates_credit_card(self):
         """Fails if a credit card wasn't obfuscated after calling :py:meth:`save`."""
@@ -465,15 +477,11 @@ class SubscriptionTestCase(TestCase):
         "terminusgps_payments/tests/test_subscription.json",
     ]
 
-    def setUp(self):
-        self.obj = Subscription.objects.get(pk=1)
-
     def test_pull(self):
         """Fails if :py:meth:`pull` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.getCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
-
-        self.obj.pk = 1
-        self.obj.pull(mock_service)
+        subscription = Subscription.objects.get(pk=1)
+        subscription.pull(mock_service)
 
         expected = apicontrollers.ARBGetSubscriptionController
         controller = mock_service.execute.call_args.args[0][1]
@@ -482,9 +490,10 @@ class SubscriptionTestCase(TestCase):
     def test_push_create(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
+        subscription = Subscription.objects.get(pk=1)
+        subscription.pk = None
 
-        self.obj.pk = None
-        self.obj.push(mock_service)
+        subscription.push(mock_service)
 
         expected = apicontrollers.ARBCreateSubscriptionController
         controller = mock_service.execute.call_args.args[0][1]
@@ -493,9 +502,9 @@ class SubscriptionTestCase(TestCase):
     def test_push_update(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.updateCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
+        subscription = Subscription.objects.get(pk=1)
 
-        self.obj.pk = 1
-        self.obj.push(mock_service)
+        subscription.push(mock_service)
 
         expected = apicontrollers.ARBUpdateSubscriptionController
         controller = mock_service.execute.call_args.args[0][1]
@@ -503,6 +512,7 @@ class SubscriptionTestCase(TestCase):
 
     def test_sync(self):
         """Fails if subscription attributes weren't synced on :py:meth:`sync`."""
+        subscription = Subscription.objects.get(pk=1)
         name = "TestName"
         amount = "TestAmount"
         trial_amount = "TestTrialAmount"
@@ -511,7 +521,7 @@ class SubscriptionTestCase(TestCase):
         trial_occurrences = 0
         start_date = date(2039, 12, 1)
 
-        self.obj.sync(
+        subscription.sync(
             elem=objectify.E.root(
                 objectify.E.subscription(
                     objectify.E.name(name),
@@ -527,20 +537,20 @@ class SubscriptionTestCase(TestCase):
             )
         )
 
-        self.assertEqual(self.obj.name, name)
-        self.assertEqual(self.obj.amount, amount)
-        self.assertEqual(self.obj.trial_amount, trial_amount)
-        self.assertEqual(self.obj.status, status)
-        self.assertEqual(self.obj.total_occurrences, total_occurrences)
-        self.assertEqual(self.obj.trial_occurrences, trial_occurrences)
-        self.assertEqual(self.obj.start_date, start_date)
+        self.assertEqual(subscription.name, name)
+        self.assertEqual(subscription.amount, amount)
+        self.assertEqual(subscription.trial_amount, trial_amount)
+        self.assertEqual(subscription.status, status)
+        self.assertEqual(subscription.total_occurrences, total_occurrences)
+        self.assertEqual(subscription.trial_occurrences, trial_occurrences)
+        self.assertEqual(subscription.start_date, start_date)
 
     def test__delete_in_authorizenet(self):
         """Fails if :py:meth:`_delete_in_authorizenet` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.deleteCustomerShippingAddressController`."""
         mock_service = Mock(AuthorizenetService)
+        subscription = Subscription.objects.get(pk=1)
 
-        self.obj.pk = 1
-        self.obj._delete_in_authorizenet(mock_service)
+        subscription._delete_in_authorizenet(mock_service)
 
         expected = apicontrollers.ARBCancelSubscriptionController
         controller = mock_service.execute.call_args.args[0][1]
@@ -548,11 +558,13 @@ class SubscriptionTestCase(TestCase):
 
     def test__extract_authorizenet_id(self):
         """Fails if :py:meth:`_extract_authorizenet_id` returns a non-integer."""
+        subscription = Subscription.objects.get(pk=1)
         expected = 1
         mock_element = objectify.E.root(
             objectify.E.subscriptionId(str(expected))
         )
 
-        result = self.obj._extract_authorizenet_id(mock_element)
+        result = subscription._extract_authorizenet_id(mock_element)
+
         self.assertIsInstance(result, int)
         self.assertEqual(result, 1)
