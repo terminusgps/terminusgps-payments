@@ -52,12 +52,13 @@ class AuthorizenetCreateView(
 
     def get_initial(self, **kwargs) -> dict[str, typing.Any]:
         initial: dict[str, typing.Any] = super().get_initial(**kwargs)
-        try:
-            initial["customer_profile"] = CustomerProfile.objects.get(
-                user=self.request.user
-            )
-        except CustomerProfile.DoesNotExist:
-            initial["customer_profile"] = None
+        if hasattr(self.request, "user"):
+            try:
+                initial["customer_profile"] = CustomerProfile.objects.get(
+                    user=self.request.user
+                )
+            except CustomerProfile.DoesNotExist:
+                initial["customer_profile"] = None
         return initial
 
 
@@ -140,13 +141,22 @@ class SubscriptionCreateView(AuthorizenetCreateView):
         return initial
 
     def get_form(self, form_class=None) -> forms.Form:
+        payment_qs = (
+            CustomerPaymentProfile.objects.filter(
+                customer_profile__user=self.request.user
+            )
+            if hasattr(self.request, "user")
+            else CustomerPaymentProfile.objects.none()
+        )
+        address_qs = (
+            CustomerAddressProfile.objects.filter(
+                customer_profile__user=self.request.user
+            )
+            if hasattr(self.request, "user")
+            else CustomerAddressProfile.objects.none()
+        )
+
         form = super().get_form(form_class=form_class)
-        payment_qs = CustomerPaymentProfile.objects.filter(
-            customer_profile__user=self.request.user
-        )
-        address_qs = CustomerAddressProfile.objects.filter(
-            customer_profile__user=self.request.user
-        )
         form.fields["address_profile"].queryset = address_qs
         form.fields["payment_profile"].queryset = payment_qs
         form.fields["address_profile"].empty_label = None
@@ -178,13 +188,22 @@ class SubscriptionUpdateView(
             return self.form_invalid(form=form)
 
     def get_form(self, form_class=None) -> forms.Form:
+        payment_qs = (
+            CustomerPaymentProfile.objects.filter(
+                customer_profile__user=self.request.user
+            )
+            if hasattr(self.request, "user")
+            else CustomerPaymentProfile.objects.none()
+        )
+        address_qs = (
+            CustomerAddressProfile.objects.filter(
+                customer_profile__user=self.request.user
+            )
+            if hasattr(self.request, "user")
+            else CustomerAddressProfile.objects.none()
+        )
+
         form = super().get_form(form_class=form_class)
-        payment_qs = CustomerPaymentProfile.objects.filter(
-            customer_profile__user=self.request.user
-        )
-        address_qs = CustomerAddressProfile.objects.filter(
-            customer_profile__user=self.request.user
-        )
         form.fields["address_profile"].queryset = address_qs
         form.fields["payment_profile"].queryset = payment_qs
         form.fields["address_profile"].empty_label = None
