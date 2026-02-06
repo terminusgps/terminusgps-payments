@@ -11,6 +11,7 @@ from terminusgps_payments.models import (
 )
 from terminusgps_payments.views import (
     AuthorizenetCreateView,
+    AuthorizenetListView,
     SubscriptionCreateView,
     SubscriptionUpdateView,
 )
@@ -99,6 +100,62 @@ class SubscriptionCreateViewTestCase(TestCase):
         self.assertQuerySetEqual(
             form.fields["address_profile"].queryset,
             CustomerAddressProfile.objects.none(),
+        )
+
+
+class AuthorizenetListViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+    ]
+
+    def setUp(self):
+        self.view_cls = AuthorizenetListView
+        self.user = get_user_model().objects.get(pk=1)
+
+    def test_get_queryset_anonymous_user(self):
+        """Fails if :py:class:`AuthorizenetListView` returns data to an anonymous user."""
+        request = RequestFactory().get("payment-profiles/list/")
+        view = self.view_cls(
+            model=CustomerPaymentProfile, template_name="test.html"
+        )
+        view.setup(request)
+        self.assertQuerySetEqual(
+            view.get_queryset(), CustomerPaymentProfile.objects.none()
+        )
+
+    def test_get_queryset_multiple_items(self):
+        """Fails if :py:class:`AuthorizenetListView` fails to return all (2) objects for the authenticated user."""
+        request = RequestFactory().get("payment-profiles/list/")
+        request.user = self.user
+        view = self.view_cls(
+            model=CustomerPaymentProfile, template_name="test.html"
+        )
+        view.setup(request)
+        qs = view.get_queryset()
+        self.assertQuerySetEqual(
+            qs,
+            CustomerPaymentProfile.objects.filter(
+                customer_profile__user=self.user
+            ),
+            ordered=False,
+        )
+        self.assertEqual(2, len(qs))
+
+    def test_get_queryset_empty(self):
+        """Fails if :py:class:`AuthorizenetListView` doesn't return an empty queryset."""
+        request = RequestFactory().get("address-profiles/list/")
+        request.user = self.user
+        view = self.view_cls(
+            model=CustomerAddressProfile, template_name="test.html"
+        )
+        view.setup(request)
+        self.assertQuerySetEqual(
+            view.get_queryset(),
+            CustomerAddressProfile.objects.filter(
+                customer_profile__user=self.user
+            ),
         )
 
 
