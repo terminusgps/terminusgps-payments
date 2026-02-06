@@ -474,10 +474,6 @@ class CustomerPaymentProfileTestCase(TestCase):
         self.assertIsInstance(result, int)
         self.assertEqual(result, expected_pk)
 
-    def test_save_obfuscates_credit_card(self):
-        """Fails if a credit card wasn't obfuscated after calling :py:meth:`save`."""
-        self.skipTest("TODO")
-
 
 class SubscriptionTestCase(TestCase):
     fixtures = [
