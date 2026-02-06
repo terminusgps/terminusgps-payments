@@ -45,9 +45,6 @@ class AuthorizenetCreateViewTestCase(TestCase):
         initial = self.view.get_initial()
         self.assertNotIn("customer_profile", initial)
 
-    def test_form_valid(self):
-        return
-
 
 class SubscriptionCreateViewTestCase(TestCase):
     fixtures = [
