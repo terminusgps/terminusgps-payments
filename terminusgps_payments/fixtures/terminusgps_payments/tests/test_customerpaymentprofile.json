@@ -39,5 +39,49 @@
       "bank_name": "TestBankName",
       "echeck_type": "PPD"
     }
+  },
+  {
+    "model": "terminusgps_payments.CustomerPaymentProfile",
+    "pk": 3,
+    "fields": {
+      "customer_profile": 2,
+      "first_name": "TestFirstName",
+      "last_name": "TestLastName",
+      "company": "TestCompany",
+      "address": "TestAddress",
+      "city": "TestCity",
+      "state": "TestState",
+      "country": "TestCountry",
+      "zip": "TestZip",
+      "phone_number": "TestPhoneNumber",
+      "account_number": "41111111111111111",
+      "routing_number": "411111111",
+      "account_name": "TestAccountName",
+      "account_type": "checking",
+      "bank_name": "TestBankName",
+      "echeck_type": "PPD"
+    }
+  },
+  {
+    "model": "terminusgps_payments.CustomerPaymentProfile",
+    "pk": 4,
+    "fields": {
+      "customer_profile": 2,
+      "first_name": "TestFirstName",
+      "last_name": "TestLastName",
+      "company": "TestCompany",
+      "address": "TestAddress",
+      "city": "TestCity",
+      "state": "TestState",
+      "country": "TestCountry",
+      "zip": "TestZip",
+      "phone_number": "TestPhoneNumber",
+      "account_number": "41111111111111111",
+      "routing_number": "411111111",
+      "account_name": "TestAccountName",
+      "account_type": "checking",
+      "bank_name": "TestBankName",
+      "echeck_type": "PPD"
+    }
   }
 ]

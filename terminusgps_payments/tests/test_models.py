@@ -484,6 +484,12 @@ class SubscriptionTestCase(TestCase):
         "terminusgps_payments/tests/test_subscription.json",
     ]
 
+    def test_exclusive_address_profiles(self):
+        return
+
+    def test_exclusive_payment_profiles(self):
+        return
+
     def test_pull(self):
         """Fails if :py:meth:`pull` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.getCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)

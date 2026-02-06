@@ -14,5 +14,21 @@
       "zip": "TestZip",
       "phone_number": "TestPhoneNumber"
     }
+  },
+  {
+    "model": "terminusgps_payments.CustomerAddressProfile",
+    "pk": 2,
+    "fields": {
+      "customer_profile": 2,
+      "first_name": "TestFirstName",
+      "last_name": "TestLastName",
+      "company": "TestCompany",
+      "address": "TestAddress",
+      "city": "TestCity",
+      "state": "TestState",
+      "country": "TestCountry",
+      "zip": "TestZip",
+      "phone_number": "TestPhoneNumber"
+    }
   }
 ]

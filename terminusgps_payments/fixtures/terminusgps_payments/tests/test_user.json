@@ -5,10 +5,26 @@
     "fields": {
       "password": "pbkdf2_sha256$1200000$MgYyccH21KTZXZsR7hZzfV$R2wyaEDeKFPU1HcI528ku8geNJhlFQ+mYEtmsk4Kulg=",
       "is_superuser": false,
-      "username": "TestUsername",
-      "first_name": "TestFirst",
-      "last_name": "TestLast",
-      "email": "test@domain.com",
+      "username": "TestUsername1",
+      "first_name": "TestFirst1",
+      "last_name": "TestLast1",
+      "email": "test1@domain.com",
+      "is_staff": false,
+      "is_active": true,
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 2,
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$MgYyccH21KTZXZsR7hZzfV$R2wyaEDeKFPU1HcI528ku8geNJhlFQ+mYEtmsk4Kulg=",
+      "is_superuser": false,
+      "username": "TestUsername22",
+      "first_name": "TestFirst2",
+      "last_name": "TestLast2",
+      "email": "test2@domain.com",
       "is_staff": false,
       "is_active": true,
       "groups": [],

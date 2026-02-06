@@ -6,7 +6,17 @@
       "customer_profile": 1,
       "address_profile": 1,
       "payment_profile": 1,
-      "name": "TestSubscription"
+      "name": "TestSubscription1"
+    }
+  },
+  {
+    "model": "terminusgps_payments.Subscription",
+    "pk": 2,
+    "fields": {
+      "customer_profile": 2,
+      "address_profile": 2,
+      "payment_profile": 3,
+      "name": "TestSubscription2"
     }
   }
 ]
