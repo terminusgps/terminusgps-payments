@@ -4,12 +4,12 @@
     "pk": 1,
     "fields": {
       "password": "pbkdf2_sha256$1200000$MgYyccH21KTZXZsR7hZzfV$R2wyaEDeKFPU1HcI528ku8geNJhlFQ+mYEtmsk4Kulg=",
-      "is_superuser": true,
+      "is_superuser": false,
       "username": "TestUsername",
       "first_name": "TestFirst",
       "last_name": "TestLast",
       "email": "test@domain.com",
-      "is_staff": true,
+      "is_staff": false,
       "is_active": true,
       "groups": [],
       "user_permissions": []
