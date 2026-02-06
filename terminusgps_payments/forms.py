@@ -116,7 +116,7 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
             "account_type": _("Select a bank account type."),
         }
         widgets = {
-            "card_expiry": ExpirationDateWidget(
+            "expiry_date": ExpirationDateWidget(
                 widgets={
                     "month": widgets.DateInput(format=["%m"]),
                     "year": widgets.DateInput(format=["%y"]),
@@ -125,34 +125,44 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
             "customer_profile": widgets.HiddenInput(),
         }
 
-    def __init__(self, *args, **kwargs):
-        print(f"{args = }")
-        print(f"{kwargs = }")
-        return super().__init__(*args, **kwargs)
-
     def clean(self) -> None:
-        def clean_fieldset(fieldset):
-            if any(fieldset.values()) and not all(fieldset.values()):
-                for field, val in fieldset.items():
-                    if not val:
-                        self.add_error(
-                            field,
-                            ValidationError(_("This field is required.")),
-                        )
+        cleaned_data = super().clean()
+        shipping_address_fields = [
+            cleaned_data.get("first_name"),
+            cleaned_data.get("last_name"),
+            cleaned_data.get("address"),
+            cleaned_data.get("city"),
+            cleaned_data.get("state"),
+            cleaned_data.get("country"),
+            cleaned_data.get("zip"),
+        ]
+        credit_card_fields = [
+            cleaned_data.get("card_number"),
+            cleaned_data.get("card_expiry"),
+            cleaned_data.get("card_code"),
+        ]
+        bank_account_fields = [
+            cleaned_data.get("account_number"),
+            cleaned_data.get("routing_number"),
+            cleaned_data.get("account_name"),
+            cleaned_data.get("account_type"),
+            cleaned_data.get("bank_name"),
+        ]
 
-        super().clean()
-        credit_card_fieldset = {
-            "card_number": self.cleaned_data.get("card_number"),
-            "card_expiry": self.cleaned_data.get("card_expiry"),
-            "card_code": self.cleaned_data.get("card_code"),
-        }
-        bank_account_fieldset = {
-            "account_number": self.cleaned_data.get("account_number"),
-            "routing_number": self.cleaned_data.get("routing_number"),
-            "account_name": self.cleaned_data.get("account_name"),
-            "account_type": self.cleaned_data.get("account_type"),
-            "bank_name": self.cleaned_data.get("bank_name"),
-        }
-
-        clean_fieldset(credit_card_fieldset)
-        clean_fieldset(bank_account_fieldset)
+        if not any(shipping_address_fields):
+            raise ValidationError(
+                _("Please enter a valid shipping address."), code="invalid"
+            )
+        if any(credit_card_fields) and any(bank_account_fields):
+            raise ValidationError(
+                _("Please enter credit card or bank account info, not both."),
+                code="invalid",
+            )
+        if any(credit_card_fields) and not all(credit_card_fields):
+            raise ValidationError(
+                _("Please fill out all credit card fields."), code="invalid"
+            )
+        if any(bank_account_fields) and not all(bank_account_fields):
+            raise ValidationError(
+                _("Please fill out all bank account fields."), code="invalid"
+            )
