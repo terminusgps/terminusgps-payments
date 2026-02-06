@@ -113,6 +113,13 @@ class AuthorizenetDetailView(
     content_type = "text/html"
     http_method_names = ["get"]
 
+    def get_queryset(self):
+        if hasattr(self.request, "user"):
+            return self.model.objects.filter(
+                customer_profile__user=self.request.user
+            )
+        return self.model.objects.none()
+
 
 class SubscriptionCreateView(AuthorizenetCreateView):
     content_type = "text/html"
