@@ -168,11 +168,14 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
 
         if not any(billing_address_fields):
             raise ValidationError(
-                _("Please enter a valid billing address."), code="invalid"
+                _("Please fill out all required billing address fields."),
+                code="invalid",
             )
         if any(credit_card_fields) and any(bank_account_fields):
             raise ValidationError(
-                _("Please enter credit card or bank account info, not both."),
+                _(
+                    "Please fill out all credit card fields or bank account fields, not both."
+                ),
                 code="invalid",
             )
         if any(credit_card_fields) and not all(credit_card_fields):

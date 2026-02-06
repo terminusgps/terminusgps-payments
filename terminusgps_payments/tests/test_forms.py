@@ -77,7 +77,7 @@ class CustomerPaymentProfileCreateFormTestCase(TestCase):
         form = self.form_cls(data=data)
         self.assertFalse(form.is_valid())
         self.assertFormError(
-            form, None, "Please enter a valid billing address."
+            form, None, "Please fill out all required billing address fields."
         )
 
     def test_clean_both_credit_card_and_bank_account(self):
@@ -93,7 +93,7 @@ class CustomerPaymentProfileCreateFormTestCase(TestCase):
         self.assertFormError(
             form,
             None,
-            "Please enter credit card or bank account info, not both.",
+            "Please fill out all credit card fields or bank account fields, not both.",
         )
 
     def test_clean_credit_card(self):
