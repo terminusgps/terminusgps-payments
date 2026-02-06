@@ -59,20 +59,22 @@ class CustomerProfileTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.obj = CustomerProfile.objects.get(pk=1)
+        self.customerprofile = CustomerProfile.objects.get(pk=1)
 
     def test___str__(self):
         """Fails if the customer profile's :py:meth:`__str__` method returned unexpected values."""
-        self.assertEqual(str(self.obj), str(self.obj.merchant_id))
-        self.obj.merchant_id = ""
-        self.assertIn(str(self.obj.pk), str(self.obj))
+        self.assertEqual(
+            str(self.customerprofile), str(self.customerprofile.merchant_id)
+        )
+        self.customerprofile.merchant_id = ""
+        self.assertIn(str(self.customerprofile.pk), str(self.customerprofile))
 
     def test_push_create(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = None
-        self.obj.push(mock_service)
+        self.customerprofile.pk = None
+        self.customerprofile.push(mock_service)
 
         expected = apicontrollers.createCustomerProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -82,8 +84,8 @@ class CustomerProfileTestCase(TestCase):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.updateCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = 1
-        self.obj.push(mock_service)
+        self.customerprofile.pk = 1
+        self.customerprofile.push(mock_service)
 
         expected = apicontrollers.updateCustomerProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -93,8 +95,8 @@ class CustomerProfileTestCase(TestCase):
         """Fails if :py:meth:`pull` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.getCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = 1
-        self.obj.pull(mock_service)
+        self.customerprofile.pk = 1
+        self.customerprofile.pull(mock_service)
 
         expected = apicontrollers.getCustomerProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -106,7 +108,7 @@ class CustomerProfileTestCase(TestCase):
         email = "email@domain.com"
         description = "description"
 
-        self.obj.sync(
+        self.customerprofile.sync(
             elem=objectify.E.root(
                 objectify.E.profile(
                     objectify.E.merchantCustomerId(merchant_id),
@@ -116,16 +118,16 @@ class CustomerProfileTestCase(TestCase):
             )
         )
 
-        self.assertEqual(self.obj.email, email)
-        self.assertEqual(self.obj.merchant_id, merchant_id)
-        self.assertEqual(self.obj.description, description)
+        self.assertEqual(self.customerprofile.email, email)
+        self.assertEqual(self.customerprofile.merchant_id, merchant_id)
+        self.assertEqual(self.customerprofile.description, description)
 
     def test__delete_in_authorizenet(self):
         """Fails if :py:meth:`_delete_in_authorizenet` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.deleteCustomerProfileController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = 1
-        self.obj._delete_in_authorizenet(mock_service)
+        self.customerprofile.pk = 1
+        self.customerprofile._delete_in_authorizenet(mock_service)
 
         expected = apicontrollers.deleteCustomerProfileController
         controller = mock_service.execute.call_args.args[0][1]
@@ -138,7 +140,7 @@ class CustomerProfileTestCase(TestCase):
             objectify.E.customerProfileId(str(expected))
         )
 
-        result = self.obj._extract_authorizenet_id(mock_element)
+        result = self.customerprofile._extract_authorizenet_id(mock_element)
         self.assertIsInstance(result, int)
         self.assertEqual(result, 1)
 
@@ -151,21 +153,26 @@ class CustomerAddressProfileTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.obj = CustomerAddressProfile.objects.get(pk=1)
+        self.customeraddressprofile = CustomerAddressProfile.objects.get(pk=1)
 
     def test___str__(self):
         """Fails if the address profile's :py:meth:`__str__` method returned unexpected values."""
-        self.assertEqual(str(self.obj), str(self.obj.address))
-        self.obj.pk = 1
-        self.obj.address = ""
-        self.assertEqual(str(self.obj), "CustomerAddressProfile #1")
+        self.assertEqual(
+            str(self.customeraddressprofile),
+            str(self.customeraddressprofile.address),
+        )
+        self.customeraddressprofile.pk = 1
+        self.customeraddressprofile.address = ""
+        self.assertEqual(
+            str(self.customeraddressprofile), "CustomerAddressProfile #1"
+        )
 
     def test_push_create(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerShippingAddressController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = None
-        self.obj.push(mock_service)
+        self.customeraddressprofile.pk = None
+        self.customeraddressprofile.push(mock_service)
 
         expected = apicontrollers.createCustomerShippingAddressController
         controller = mock_service.execute.call_args.args[0][1]
@@ -175,8 +182,8 @@ class CustomerAddressProfileTestCase(TestCase):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.updateCustomerShippingAddressController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = 1
-        self.obj.push(mock_service)
+        self.customeraddressprofile.pk = 1
+        self.customeraddressprofile.push(mock_service)
 
         expected = apicontrollers.updateCustomerShippingAddressController
         controller = mock_service.execute.call_args.args[0][1]
@@ -186,8 +193,8 @@ class CustomerAddressProfileTestCase(TestCase):
         """Fails if :py:meth:`pull` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.getCustomerShippingAddressController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = 1
-        self.obj.pull(mock_service)
+        self.customeraddressprofile.pk = 1
+        self.customeraddressprofile.pull(mock_service)
 
         expected = apicontrollers.getCustomerShippingAddressController
         controller = mock_service.execute.call_args.args[0][1]
@@ -205,7 +212,7 @@ class CustomerAddressProfileTestCase(TestCase):
         zip = "zip"
         phone_number = "phoneNumber"
 
-        self.obj.sync(
+        self.customeraddressprofile.sync(
             elem=objectify.E.root(
                 objectify.E.defaultShippingAddress(1),
                 objectify.E.address(
@@ -222,22 +229,24 @@ class CustomerAddressProfileTestCase(TestCase):
             )
         )
 
-        self.assertEqual(self.obj.first_name, first_name)
-        self.assertEqual(self.obj.last_name, last_name)
-        self.assertEqual(self.obj.company, company)
-        self.assertEqual(self.obj.address, address)
-        self.assertEqual(self.obj.city, city)
-        self.assertEqual(self.obj.state, state)
-        self.assertEqual(self.obj.country, country)
-        self.assertEqual(self.obj.zip, zip)
-        self.assertEqual(self.obj.phone_number, phone_number)
+        self.assertEqual(self.customeraddressprofile.first_name, first_name)
+        self.assertEqual(self.customeraddressprofile.last_name, last_name)
+        self.assertEqual(self.customeraddressprofile.company, company)
+        self.assertEqual(self.customeraddressprofile.address, address)
+        self.assertEqual(self.customeraddressprofile.city, city)
+        self.assertEqual(self.customeraddressprofile.state, state)
+        self.assertEqual(self.customeraddressprofile.country, country)
+        self.assertEqual(self.customeraddressprofile.zip, zip)
+        self.assertEqual(
+            self.customeraddressprofile.phone_number, phone_number
+        )
 
     def test__delete_in_authorizenet(self):
         """Fails if :py:meth:`_delete_in_authorizenet` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.deleteCustomerShippingAddressController`."""
         mock_service = Mock(AuthorizenetService)
 
-        self.obj.pk = 1
-        self.obj._delete_in_authorizenet(mock_service)
+        self.customeraddressprofile.pk = 1
+        self.customeraddressprofile._delete_in_authorizenet(mock_service)
 
         expected = apicontrollers.deleteCustomerShippingAddressController
         controller = mock_service.execute.call_args.args[0][1]
@@ -250,7 +259,9 @@ class CustomerAddressProfileTestCase(TestCase):
             objectify.E.customerAddressId(str(expected))
         )
 
-        result = self.obj._extract_authorizenet_id(mock_element)
+        result = self.customeraddressprofile._extract_authorizenet_id(
+            mock_element
+        )
         self.assertIsInstance(result, int)
         self.assertEqual(result, 1)
 
