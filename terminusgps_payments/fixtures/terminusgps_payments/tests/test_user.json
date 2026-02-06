@@ -21,7 +21,7 @@
     "fields": {
       "password": "pbkdf2_sha256$1200000$MgYyccH21KTZXZsR7hZzfV$R2wyaEDeKFPU1HcI528ku8geNJhlFQ+mYEtmsk4Kulg=",
       "is_superuser": false,
-      "username": "TestUsername22",
+      "username": "TestUsername2",
       "first_name": "TestFirst2",
       "last_name": "TestLast2",
       "email": "test2@domain.com",
