@@ -69,6 +69,23 @@ class CustomerAddressProfileCreateForm(forms.ModelForm):
             ),
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        shipping_address_fields = [
+            cleaned_data.get("first_name"),
+            cleaned_data.get("last_name"),
+            cleaned_data.get("address"),
+            cleaned_data.get("city"),
+            cleaned_data.get("state"),
+            cleaned_data.get("country"),
+            cleaned_data.get("zip"),
+        ]
+        if not all(shipping_address_fields):
+            raise ValidationError(
+                _("Please fill out all required shipping address fields."),
+                code="invalid",
+            )
+
 
 class CustomerPaymentProfileCreateForm(forms.ModelForm):
     class Meta:
@@ -127,7 +144,7 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
 
     def clean(self) -> None:
         cleaned_data = super().clean()
-        shipping_address_fields = [
+        billing_address_fields = [
             cleaned_data.get("first_name"),
             cleaned_data.get("last_name"),
             cleaned_data.get("address"),
@@ -149,9 +166,9 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
             cleaned_data.get("bank_name"),
         ]
 
-        if not any(shipping_address_fields):
+        if not any(billing_address_fields):
             raise ValidationError(
-                _("Please enter a valid shipping address."), code="invalid"
+                _("Please enter a valid billing address."), code="invalid"
             )
         if any(credit_card_fields) and any(bank_account_fields):
             raise ValidationError(

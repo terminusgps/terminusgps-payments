@@ -2,8 +2,41 @@ from datetime import date
 
 from django.test import TestCase
 
-from terminusgps_payments.forms import CustomerPaymentProfileCreateForm
+from terminusgps_payments.forms import (
+    CustomerAddressProfileCreateForm,
+    CustomerPaymentProfileCreateForm,
+)
 from terminusgps_payments.models import CustomerProfile
+
+
+class CustomerAddressProfileCreateFormTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+    ]
+
+    def setUp(self):
+        self.form_cls = CustomerAddressProfileCreateForm
+        self.address_data = {
+            "first_name": "TestFirstName",
+            "last_name": "TestLastName",
+            "company": "TestCompany",
+            "address": "TestAddress",
+            "city": "TestCity",
+            "state": "TestState",
+            "country": "TestCountry",
+            "zip": "TestZip",
+            "phone_number": "TestPhoneNumber",
+        }
+
+    def test_clean_missing_address(self):
+        """Fails if the form doesn't have the proper error message applied with missing address data."""
+        data = {"customer_profile": CustomerProfile.objects.get(pk=1)}
+        form = self.form_cls(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertFormError(
+            form, None, "Please fill out all required shipping address fields."
+        )
 
 
 class CustomerPaymentProfileCreateFormTestCase(TestCase):
@@ -44,7 +77,7 @@ class CustomerPaymentProfileCreateFormTestCase(TestCase):
         form = self.form_cls(data=data)
         self.assertFalse(form.is_valid())
         self.assertFormError(
-            form, None, "Please enter a valid shipping address."
+            form, None, "Please enter a valid billing address."
         )
 
     def test_clean_both_credit_card_and_bank_account(self):
