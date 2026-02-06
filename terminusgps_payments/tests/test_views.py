@@ -11,6 +11,8 @@ from terminusgps_payments.models import (
 )
 from terminusgps_payments.views import (
     AuthorizenetCreateView,
+    AuthorizenetDeleteView,
+    AuthorizenetDetailView,
     AuthorizenetListView,
     SubscriptionCreateView,
     SubscriptionUpdateView,
@@ -156,6 +158,59 @@ class AuthorizenetListViewTestCase(TestCase):
             CustomerAddressProfile.objects.filter(
                 customer_profile__user=self.user
             ),
+        )
+
+
+class AuthorizenetDeleteViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+        "terminusgps_payments/tests/test_customeraddressprofile.json",
+    ]
+
+    def setUp(self):
+        self.view_cls = AuthorizenetDeleteView
+        self.user = get_user_model().objects.get(pk=1)
+        # TODO
+
+
+class AuthorizenetDetailViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+    ]
+
+    def setUp(self):
+        self.view_cls = AuthorizenetDetailView
+        self.user = get_user_model().objects.get(pk=1)
+
+    def test_get_queryset_anonymous_user(self):
+        request = RequestFactory().get("payment-profiles/1/detail/")
+        view = self.view_cls(
+            model=CustomerPaymentProfile, template_name="test.html"
+        )
+        view.setup(request)
+        qs = view.get_queryset()
+        self.assertQuerySetEqual(
+            qs, CustomerPaymentProfile.objects.none(), ordered=False
+        )
+
+    def test_get_queryset_authenticated_user(self):
+        request = RequestFactory().get("payment-profiles/1/detail/")
+        request.user = self.user
+        view = self.view_cls(
+            model=CustomerPaymentProfile, template_name="test.html"
+        )
+        view.setup(request)
+        qs = view.get_queryset()
+        self.assertQuerySetEqual(
+            qs,
+            CustomerPaymentProfile.objects.filter(
+                customer_profile__user=self.user
+            ),
+            ordered=False,
         )
 
 
