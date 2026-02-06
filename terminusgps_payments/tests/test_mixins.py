@@ -5,7 +5,7 @@ from terminusgps_payments.mixins import HtmxTemplateResponseMixin
 
 
 class TestTemplateView(HtmxTemplateResponseMixin, TemplateView):
-    template_name = "test.html"
+    pass
 
 
 class HtmxTemplateResponseMixinTestCase(TestCase):
