@@ -6,119 +6,21 @@ from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
-from django.views.generic import (
-    CreateView,
-    DeleteView,
-    DetailView,
-    ListView,
-    UpdateView,
-)
+from django.views.generic import UpdateView
 from terminusgps.authorizenet.service import (
     AuthorizenetControllerExecutionError,
 )
 
-from .mixins import (
-    AuthorizenetMultipleObjectMixin,
-    AuthorizenetSingleObjectMixin,
-    HtmxTemplateResponseMixin,
-)
-from .models import (
+from terminusgps_payments.models import (
     CustomerAddressProfile,
     CustomerPaymentProfile,
-    CustomerProfile,
     Subscription,
 )
-
-
-class AuthorizenetCreateView(
-    LoginRequiredMixin, HtmxTemplateResponseMixin, CreateView
-):
-    content_type = "text/html"
-    form_class = None
-    http_method_names = ["get", "post"]
-    model = None
-
-    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
-        try:
-            return super().form_valid(form=form)
-        except AuthorizenetControllerExecutionError as error:
-            form.add_error(
-                None,
-                ValidationError(
-                    "%(error)s", code="invalid", params={"error": str(error)}
-                ),
-            )
-            return self.form_invalid(form=form)
-
-    def get_initial(self, **kwargs) -> dict[str, typing.Any]:
-        initial: dict[str, typing.Any] = super().get_initial(**kwargs)
-        if hasattr(self.request, "user"):
-            try:
-                initial["customer_profile"] = CustomerProfile.objects.get(
-                    user=self.request.user
-                )
-            except CustomerProfile.DoesNotExist:
-                initial["customer_profile"] = None
-        return initial
-
-
-class AuthorizenetListView(
-    LoginRequiredMixin,
-    HtmxTemplateResponseMixin,
-    AuthorizenetMultipleObjectMixin,
-    ListView,
-):
-    allow_empty = True
-    content_type = "text/html"
-    http_method_names = ["get"]
-    ordering = "pk"
-    paginate_by = 4
-
-    def get_queryset(self):
-        if hasattr(self.request, "user"):
-            return self.model.objects.filter(
-                customer_profile__user=self.request.user
-            ).order_by(self.get_ordering())
-        return self.model.objects.none()
-
-
-class AuthorizenetDeleteView(
-    LoginRequiredMixin,
-    HtmxTemplateResponseMixin,
+from terminusgps_payments.views.generic import AuthorizenetCreateView
+from terminusgps_payments.views.mixins import (
     AuthorizenetSingleObjectMixin,
-    DeleteView,
-):
-    content_type = "text/html"
-    http_method_names = ["get", "post"]
-
-    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
-        try:
-            super().form_valid(form=form)
-        except AuthorizenetControllerExecutionError as error:
-            form.add_error(
-                None,
-                ValidationError(
-                    "%(error)s", code="invalid", params={"error": str(error)}
-                ),
-            )
-            return self.form_invalid(form=form)
-
-
-class AuthorizenetDetailView(
-    LoginRequiredMixin,
     HtmxTemplateResponseMixin,
-    AuthorizenetSingleObjectMixin,
-    DetailView,
-):
-    content_type = "text/html"
-    http_method_names = ["get"]
-
-    def get_queryset(self):
-        if hasattr(self.request, "user"):
-            return self.model.objects.filter(
-                customer_profile__user=self.request.user
-            )
-        return self.model.objects.none()
+)
 
 
 class SubscriptionCreateView(AuthorizenetCreateView):

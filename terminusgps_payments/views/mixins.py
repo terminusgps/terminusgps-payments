@@ -19,13 +19,17 @@ class HtmxTemplateResponseMixin(TemplateResponseMixin):
 
 class AuthorizenetSingleObjectMixin(SingleObjectMixin):
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
-        )
+        if hasattr(self.request, "user"):
+            return self.model.objects.filter(
+                customer_profile__user=self.request.user
+            )
+        return self.model.objects.none()
 
 
 class AuthorizenetMultipleObjectMixin(MultipleObjectMixin):
     def get_queryset(self) -> QuerySet:
-        return self.model.objects.filter(
-            customer_profile__user=self.request.user
-        ).order_by(self.get_ordering())
+        if hasattr(self.request, "user"):
+            return self.model.objects.filter(
+                customer_profile__user=self.request.user
+            ).order_by(self.get_ordering())
+        return self.model.objects.none()

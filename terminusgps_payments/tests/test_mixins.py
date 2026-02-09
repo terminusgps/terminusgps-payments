@@ -1,7 +1,7 @@
 from django.test import RequestFactory, TestCase
 from django.views.generic import TemplateView
 
-from terminusgps_payments.mixins import HtmxTemplateResponseMixin
+from terminusgps_payments.views.mixins import HtmxTemplateResponseMixin
 
 
 class TestTemplateView(HtmxTemplateResponseMixin, TemplateView):

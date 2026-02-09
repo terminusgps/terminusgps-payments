@@ -3,7 +3,7 @@ from datetime import date
 from unittest.mock import Mock
 
 from authorizenet import apicontrollers
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from lxml import objectify
 from terminusgps.authorizenet.service import AuthorizenetService
 
@@ -168,6 +168,7 @@ class CustomerProfileTestCase(TestCase):
         self.customerprofile.save(service=mock_service)
 
 
+@override_settings(ROOT_URLCONF="src.urls")
 class CustomerAddressProfileTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -189,6 +190,10 @@ class CustomerAddressProfileTestCase(TestCase):
         self.assertEqual(
             str(self.customeraddressprofile), "CustomerAddressProfile #1"
         )
+
+    def test_get_absolute_url(self):
+        url = self.customeraddressprofile.get_absolute_url()
+        self.assertEqual("/address-profiles/1/detail/", url)
 
     def test_push_create(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerShippingAddressController`."""
@@ -289,6 +294,7 @@ class CustomerAddressProfileTestCase(TestCase):
         self.assertEqual(result, 1)
 
 
+@override_settings(ROOT_URLCONF="src.urls")
 class CustomerPaymentProfileTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -311,6 +317,11 @@ class CustomerPaymentProfileTestCase(TestCase):
         self.assertEqual(
             str(cc_customerpaymentprofile), "CustomerPaymentProfile #1"
         )
+
+    def test_get_absolute_url(self):
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
+        url = customerpaymentprofile.get_absolute_url()
+        self.assertEqual("/payment-profiles/1/detail/", url)
 
     def test_push_create_credit_card(self):
         """Fails if :py:meth:`push` used an Authorizenet API contoller other than :py:obj:`~authorizenet.apicontrollers.createCustomerPaymentProfileController` for a credit card."""

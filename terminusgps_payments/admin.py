@@ -1,32 +1,11 @@
-from django.contrib import admin, messages
-from django.utils.translation import gettext_lazy as _
-from django.utils.translation import ngettext
+from django.contrib import admin
 
-from . import models, tasks
+from . import models
 
 
 @admin.register(models.CustomerProfile)
 class CustomerProfileAdmin(admin.ModelAdmin):
     list_display = ["id", "merchant_id", "email"]
-    actions = ["queue_authorizenet_sync"]
-
-    @admin.action(
-        description=_("Sync selected customer profiles with Authorizenet")
-    )
-    def queue_authorizenet_sync(self, request, queryset):
-        for customer_profile in queryset:
-            tasks.sync_customer_profile.enqueue(customer_profile.pk)
-        self.message_user(
-            request,
-            ngettext(
-                _("%d customer profile syncronization was started."),
-                _("%d customer profile syncronizations were started."),
-                len(queryset),
-            )
-            % len(queryset),
-            messages.SUCCESS,
-        )
-        return
 
 
 @admin.register(models.CustomerPaymentProfile)

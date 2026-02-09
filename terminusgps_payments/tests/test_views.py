@@ -1,261 +1,299 @@
-from datetime import date, timedelta
-
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 
-from terminusgps_payments.forms import CustomerAddressProfileCreateForm
+from terminusgps_payments.forms import (
+    CustomerAddressProfileCreateForm,
+    CustomerPaymentProfileCreateForm,
+)
 from terminusgps_payments.models import (
     CustomerAddressProfile,
     CustomerPaymentProfile,
-    CustomerProfile,
 )
 from terminusgps_payments.views import (
-    AuthorizenetCreateView,
-    AuthorizenetDeleteView,
-    AuthorizenetDetailView,
-    AuthorizenetListView,
-    SubscriptionCreateView,
-    SubscriptionUpdateView,
+    CustomerAddressProfileCreateView,
+    CustomerAddressProfileDeleteView,
+    CustomerAddressProfileDetailView,
+    CustomerAddressProfileListView,
+    CustomerPaymentProfileCreateView,
+    CustomerPaymentProfileDeleteView,
+    CustomerPaymentProfileDetailView,
+    CustomerPaymentProfileListView,
 )
 
 
-class AuthorizenetCreateViewTestCase(TestCase):
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerAddressProfileCreateViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
         "terminusgps_payments/tests/test_customerprofile.json",
     ]
 
     def setUp(self):
-        self.view = AuthorizenetCreateView(
-            model=CustomerAddressProfile,
-            form_class=CustomerAddressProfileCreateForm,
-        )
+        self.factory = RequestFactory()
+        self.view = CustomerAddressProfileCreateView()
         self.user = get_user_model().objects.get(pk=1)
 
-    def test_get_initial_with_customerprofile(self):
-        request = RequestFactory().get("address-profiles/create/")
+    def test_content_type(self):
+        """Fails if the view's content type was anything other than 'text/html'."""
+        request = self.factory.get("/address-profiles/create/")
         request.user = self.user
         self.view.setup(request)
-        initial = self.view.get_initial()
-        self.assertIn("customer_profile", initial)
+        self.assertEqual("text/html", self.view.content_type)
+
+    def test_form_class(self):
+        """Fails if the view's form class wasn't :py:obj:`~terminusgps_payments.forms.CustomerAddressProfileCreateForm`."""
+        request = self.factory.get("/address-profiles/create/")
+        request.user = self.user
+        self.view.setup(request)
+        form = self.view.get_form()
+        self.assertIsInstance(form, CustomerAddressProfileCreateForm)
+
+    def test_http_method_names(self):
+        """Fails if 'get' and 'post' weren't present in :py:attr:`http_method_names`."""
+        request = self.factory.get("/address-profiles/create/")
+        request.user = self.user
+        self.view.setup(request)
+        self.assertIn("get", self.view.http_method_names)
+        self.assertIn("post", self.view.http_method_names)
+
+    def test_get_success_url(self):
+        """Fails if :py:meth:`get_success_url` returns a URL other than '/address-profiles/list/'."""
+        request = self.factory.get("/address-profiles/create/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertEqual(
-            CustomerProfile.objects.get(pk=1), initial["customer_profile"]
+            "/address-profiles/list/", self.view.get_success_url()
         )
 
-    def test_get_initial_anonymous_user(self):
-        request = RequestFactory().get("address-profiles/create/")
-        self.view.setup(request)
-        initial = self.view.get_initial()
-        self.assertNotIn("customer_profile", initial)
 
-
-class SubscriptionCreateViewTestCase(TestCase):
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerAddressProfileDetailViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
         "terminusgps_payments/tests/test_customerprofile.json",
         "terminusgps_payments/tests/test_customeraddressprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
     ]
 
     def setUp(self):
-        self.view = SubscriptionCreateView()
+        self.factory = RequestFactory()
+        self.view = CustomerAddressProfileDetailView()
         self.user = get_user_model().objects.get(pk=1)
 
-    def test_get_initial(self):
-        request = RequestFactory().get("subscriptions/create/")
+    def test_content_type(self):
+        request = self.factory.get("/address-profiles/1/detail/")
         request.user = self.user
         self.view.setup(request)
-        initial = self.view.get_initial()
-        self.assertIn("start_date", initial)
-        self.assertAlmostEqual(
-            date.today(), initial["start_date"], delta=timedelta(hours=23)
-        )
+        self.assertEqual("text/html", self.view.content_type)
 
-    def test_get_form_authenticated_user(self):
-        request = RequestFactory().get("subscriptions/create/")
+    def test_http_method_names(self):
+        request = self.factory.get("/address-profiles/1/detail/")
         request.user = self.user
         self.view.setup(request)
-        form = self.view.get_form()
-        self.assertQuerySetEqual(
-            form.fields["payment_profile"].queryset,
-            CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
-        )
-        self.assertQuerySetEqual(
-            form.fields["address_profile"].queryset,
-            CustomerAddressProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
-        )
-
-    def test_get_form_anonymous_user(self):
-        request = RequestFactory().get("subscriptions/create/")
-        self.view.setup(request)
-        form = self.view.get_form()
-        self.assertQuerySetEqual(
-            form.fields["payment_profile"].queryset,
-            CustomerPaymentProfile.objects.none(),
-        )
-        self.assertQuerySetEqual(
-            form.fields["address_profile"].queryset,
-            CustomerAddressProfile.objects.none(),
-        )
-
-
-class AuthorizenetListViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-    ]
-
-    def setUp(self):
-        self.view_cls = AuthorizenetListView
-        self.user = get_user_model().objects.get(pk=1)
-
-    def test_get_queryset_anonymous_user(self):
-        """Fails if :py:class:`AuthorizenetListView` returns data to an anonymous user."""
-        request = RequestFactory().get("payment-profiles/list/")
-        view = self.view_cls(
-            model=CustomerPaymentProfile, template_name="test.html"
-        )
-        view.setup(request)
-        self.assertQuerySetEqual(
-            view.get_queryset(), CustomerPaymentProfile.objects.none()
-        )
-
-    def test_get_queryset_multiple_items(self):
-        """Fails if :py:class:`AuthorizenetListView` fails to return all (2) objects for the authenticated user."""
-        request = RequestFactory().get("payment-profiles/list/")
-        request.user = self.user
-        view = self.view_cls(
-            model=CustomerPaymentProfile, template_name="test.html"
-        )
-        view.setup(request)
-        qs = view.get_queryset()
-        self.assertQuerySetEqual(
-            qs,
-            CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
-        )
-        self.assertEqual(2, len(qs))
-
-    def test_get_queryset_empty(self):
-        """Fails if :py:class:`AuthorizenetListView` doesn't return an empty queryset."""
-        request = RequestFactory().get("address-profiles/list/")
-        request.user = self.user
-        view = self.view_cls(
-            model=CustomerAddressProfile, template_name="test.html"
-        )
-        view.setup(request)
-        self.assertQuerySetEqual(
-            view.get_queryset(),
-            CustomerAddressProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-        )
-
-
-class AuthorizenetDeleteViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-    ]
-
-    def setUp(self):
-        self.view_cls = AuthorizenetDeleteView
-        self.user = get_user_model().objects.get(pk=1)
-        # TODO
-
-
-class AuthorizenetDetailViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-    ]
-
-    def setUp(self):
-        self.view_cls = AuthorizenetDetailView
-        self.user = get_user_model().objects.get(pk=1)
-
-    def test_get_queryset_anonymous_user(self):
-        request = RequestFactory().get("payment-profiles/1/detail/")
-        view = self.view_cls(
-            model=CustomerPaymentProfile, template_name="test.html"
-        )
-        view.setup(request)
-        qs = view.get_queryset()
-        self.assertQuerySetEqual(
-            qs, CustomerPaymentProfile.objects.none(), ordered=False
-        )
+        self.assertIn("get", self.view.http_method_names)
 
     def test_get_queryset_authenticated_user(self):
-        request = RequestFactory().get("payment-profiles/1/detail/")
-        request.user = self.user
-        view = self.view_cls(
-            model=CustomerPaymentProfile, template_name="test.html"
-        )
-        view.setup(request)
-        qs = view.get_queryset()
-        self.assertQuerySetEqual(
-            qs,
-            CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
-        )
-
-
-class SubscriptionUpdateViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-        "terminusgps_payments/tests/test_subscription.json",
-    ]
-
-    def setUp(self):
-        self.view = SubscriptionUpdateView()
-        self.user = get_user_model().objects.get(pk=1)
-
-    def test_get_form_authenticated_user(self):
-        request = RequestFactory().get("subscriptions/1/update/")
+        """Fails if :py:meth:`get_queryset` doesn't return all objects associated with the user."""
+        request = self.factory.get("/address-profiles/1/detail/")
         request.user = self.user
         self.view.setup(request)
-        form = self.view.get_form()
         self.assertQuerySetEqual(
-            form.fields["payment_profile"].queryset,
-            CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
-        )
-        self.assertQuerySetEqual(
-            form.fields["address_profile"].queryset,
+            self.view.get_queryset(),
             CustomerAddressProfile.objects.filter(
                 customer_profile__user=self.user
             ),
             ordered=False,
         )
 
-    def test_get_form_anonymous_user(self):
-        request = RequestFactory().get("subscriptions/1/update/")
+    def test_get_queryset_anonymous_user(self):
+        """Fails if :py:meth:`get_queryset` returns anything other than an empty queryset for an anonymous user."""
+        request = self.factory.get("/address-profiles/1/detail/")
         self.view.setup(request)
-        form = self.view.get_form()
         self.assertQuerySetEqual(
-            form.fields["payment_profile"].queryset,
-            CustomerPaymentProfile.objects.none(),
-        )
-        self.assertQuerySetEqual(
-            form.fields["address_profile"].queryset,
+            self.view.get_queryset(),
             CustomerAddressProfile.objects.none(),
+            ordered=False,
+        )
+
+
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerAddressProfileListViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customeraddressprofile.json",
+    ]
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.view = CustomerAddressProfileListView()
+        self.user = get_user_model().objects.get(pk=1)
+
+    def test_content_type(self):
+        request = self.factory.get("/address-profiles/list/")
+        request.user = self.user
+        self.view.setup(request)
+        self.assertEqual("text/html", self.view.content_type)
+
+    def test_http_method_names(self):
+        request = self.factory.get("/address-profiles/list/")
+        request.user = self.user
+        self.view.setup(request)
+        self.assertIn("get", self.view.http_method_names)
+
+    def test_get_queryset_authenticated_user(self):
+        """Fails if :py:meth:`get_queryset` doesn't return all objects associated with the user."""
+        request = self.factory.get("/address-profiles/list/")
+        request.user = self.user
+        self.view.setup(request)
+        self.assertQuerySetEqual(
+            self.view.get_queryset(),
+            CustomerAddressProfile.objects.filter(
+                customer_profile__user=self.user
+            ),
+            ordered=False,
+        )
+
+    def test_get_queryset_anonymous_user(self):
+        """Fails if :py:meth:`get_queryset` returns anything other than an empty queryset for an anonymous user."""
+        request = self.factory.get("/address-profiles/list/")
+        self.view.setup(request)
+        self.assertQuerySetEqual(
+            self.view.get_queryset(),
+            CustomerAddressProfile.objects.none(),
+            ordered=False,
+        )
+
+
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerAddressProfileDeleteViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customeraddressprofile.json",
+    ]
+
+    def setUp(self):
+        self.view = CustomerAddressProfileDeleteView()
+        request = RequestFactory().get("/address-profiles/1/delete/")
+        request.user = get_user_model().objects.get(pk=1)
+        self.view.setup(request)
+
+    def test_content_type(self):
+        self.assertEqual("text/html", self.view.content_type)
+
+    def test_http_method_names(self):
+        self.assertIn("get", self.view.http_method_names)
+        self.assertIn("post", self.view.http_method_names)
+
+    def test_get_success_url(self):
+        self.assertEqual(
+            "/address-profiles/list/", self.view.get_success_url()
+        )
+
+
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerPaymentProfileCreateViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+    ]
+
+    def setUp(self):
+        self.view = CustomerPaymentProfileCreateView()
+        request = RequestFactory().get("/payment-profiles/create/")
+        request.user = get_user_model().objects.get(pk=1)
+        self.view.setup(request)
+
+    def test_content_type(self):
+        self.assertEqual("text/html", self.view.content_type)
+
+    def test_form_class(self):
+        form = self.view.get_form()
+        self.assertIsInstance(form, CustomerPaymentProfileCreateForm)
+
+    def test_http_method_names(self):
+        self.assertIn("get", self.view.http_method_names)
+        self.assertIn("post", self.view.http_method_names)
+
+    def test_get_success_url(self):
+        self.assertEqual(
+            "/payment-profiles/list/", self.view.get_success_url()
+        )
+
+
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerPaymentProfileDetailViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+    ]
+
+    def setUp(self):
+        self.view = CustomerPaymentProfileDetailView()
+        request = RequestFactory().get("/payment-profiles/1/detail/")
+        request.user = get_user_model().objects.get(pk=1)
+        self.view.setup(request)
+
+    def test_content_type(self):
+        self.assertEqual("text/html", self.view.content_type)
+
+    def test_http_method_names(self):
+        self.assertIn("get", self.view.http_method_names)
+
+    def test_get_queryset(self):
+        self.assertQuerySetEqual(
+            self.view.get_queryset(),
+            CustomerPaymentProfile.objects.filter(
+                customer_profile__user=self.view.request.user
+            ),
+            ordered=False,
+        )
+
+
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerPaymentProfileListViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+    ]
+
+    def setUp(self):
+        self.view = CustomerPaymentProfileListView()
+        request = RequestFactory().get("/payment-profiles/list/")
+        request.user = get_user_model().objects.get(pk=1)
+        self.view.setup(request)
+
+    def test_content_type(self):
+        self.assertEqual("text/html", self.view.content_type)
+
+    def test_http_method_names(self):
+        self.assertIn("get", self.view.http_method_names)
+
+
+@override_settings(ROOT_URLCONF="src.urls")
+class CustomerPaymentProfileDeleteViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+    ]
+
+    def setUp(self):
+        self.view = CustomerPaymentProfileDeleteView()
+        request = RequestFactory().get("/payment-profiles/1/delete/")
+        request.user = get_user_model().objects.get(pk=1)
+        self.view.setup(request)
+
+    def test_content_type(self):
+        self.assertEqual("text/html", self.view.content_type)
+
+    def test_http_method_names(self):
+        self.assertIn("get", self.view.http_method_names)
+        self.assertIn("post", self.view.http_method_names)
+
+    def test_get_success_url(self):
+        self.assertEqual(
+            "/payment-profiles/list/", self.view.get_success_url()
         )

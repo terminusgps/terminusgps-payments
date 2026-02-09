@@ -71,7 +71,7 @@ class CustomerPaymentProfile(AuthorizenetModel):
 
     def get_absolute_url(self) -> str:
         return reverse(
-            "terminusgps_manager:detail payment profiles",
+            "terminusgps_payments:detail payment profiles",
             kwargs={"pk": self.pk},
         )
 
