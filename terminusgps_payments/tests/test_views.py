@@ -173,21 +173,44 @@ class CustomerAddressProfileDeleteViewTestCase(TestCase):
     ]
 
     def setUp(self):
+        self.factory = RequestFactory()
         self.view = CustomerAddressProfileDeleteView()
-        request = RequestFactory().get("/address-profiles/1/delete/")
-        request.user = get_user_model().objects.get(pk=1)
-        self.view.setup(request)
+        self.user = get_user_model().objects.get(pk=1)
 
     def test_content_type(self):
+        request = self.factory.get("/address-profiles/1/delete/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertEqual("text/html", self.view.content_type)
 
     def test_http_method_names(self):
+        request = self.factory.get("/address-profiles/1/delete/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertIn("get", self.view.http_method_names)
         self.assertIn("post", self.view.http_method_names)
 
-    def test_get_success_url(self):
-        self.assertEqual(
-            "/address-profiles/list/", self.view.get_success_url()
+    def test_get_queryset_authenticated_user(self):
+        """Fails if :py:meth:`get_queryset` doesn't return all objects associated with the user."""
+        request = self.factory.get("/address-profiles/1/delete/")
+        request.user = self.user
+        self.view.setup(request)
+        self.assertQuerySetEqual(
+            self.view.get_queryset(),
+            CustomerAddressProfile.objects.filter(
+                customer_profile__user=self.user
+            ),
+            ordered=False,
+        )
+
+    def test_get_queryset_anonymous_user(self):
+        """Fails if :py:meth:`get_queryset` returns anything other than an empty queryset for an anonymous user."""
+        request = self.factory.get("/address-profiles/1/delete/")
+        self.view.setup(request)
+        self.assertQuerySetEqual(
+            self.view.get_queryset(),
+            CustomerAddressProfile.objects.none(),
+            ordered=False,
         )
 
 
@@ -199,23 +222,34 @@ class CustomerPaymentProfileCreateViewTestCase(TestCase):
     ]
 
     def setUp(self):
+        self.factory = RequestFactory()
         self.view = CustomerPaymentProfileCreateView()
-        request = RequestFactory().get("/payment-profiles/create/")
-        request.user = get_user_model().objects.get(pk=1)
-        self.view.setup(request)
+        self.user = get_user_model().objects.get(pk=1)
 
     def test_content_type(self):
+        request = self.factory.get("payment-profiles/create/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertEqual("text/html", self.view.content_type)
 
     def test_form_class(self):
+        request = self.factory.get("payment-profiles/create/")
+        request.user = self.user
+        self.view.setup(request)
         form = self.view.get_form()
         self.assertIsInstance(form, CustomerPaymentProfileCreateForm)
 
     def test_http_method_names(self):
+        request = self.factory.get("payment-profiles/create/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertIn("get", self.view.http_method_names)
         self.assertIn("post", self.view.http_method_names)
 
     def test_get_success_url(self):
+        request = self.factory.get("payment-profiles/create/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertEqual(
             "/payment-profiles/list/", self.view.get_success_url()
         )
@@ -230,23 +264,42 @@ class CustomerPaymentProfileDetailViewTestCase(TestCase):
     ]
 
     def setUp(self):
+        self.factory = RequestFactory()
         self.view = CustomerPaymentProfileDetailView()
-        request = RequestFactory().get("/payment-profiles/1/detail/")
-        request.user = get_user_model().objects.get(pk=1)
-        self.view.setup(request)
+        self.user = get_user_model().objects.get(pk=1)
 
     def test_content_type(self):
+        request = self.factory.get("payment-profiles/1/detail/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertEqual("text/html", self.view.content_type)
 
     def test_http_method_names(self):
+        request = self.factory.get("payment-profiles/1/detail/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertIn("get", self.view.http_method_names)
 
-    def test_get_queryset(self):
+    def test_get_queryset_authenticated_user(self):
+        """Fails if :py:meth:`get_queryset` doesn't return all objects associated with the user."""
+        request = self.factory.get("/payment-profiles/1/detail/")
+        request.user = self.user
+        self.view.setup(request)
         self.assertQuerySetEqual(
             self.view.get_queryset(),
             CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.view.request.user
+                customer_profile__user=self.user
             ),
+            ordered=False,
+        )
+
+    def test_get_queryset_anonymous_user(self):
+        """Fails if :py:meth:`get_queryset` returns anything other than an empty queryset for an anonymous user."""
+        request = self.factory.get("/payment-profiles/1/detail/")
+        self.view.setup(request)
+        self.assertQuerySetEqual(
+            self.view.get_queryset(),
+            CustomerPaymentProfile.objects.none(),
             ordered=False,
         )
 
