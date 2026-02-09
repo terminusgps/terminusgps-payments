@@ -16,7 +16,7 @@ class CustomerPaymentProfileCreateView(AuthorizenetCreateView):
     http_method_names = ["get", "post"]
     model = CustomerPaymentProfile
     success_url = reverse_lazy("terminusgps_payments:list payment profiles")
-    template_name = "terminusgps_payments/payment_profiles/create.html"
+    template_name = "terminusgps_payments/customerpaymentprofile_create.html"
 
 
 class CustomerPaymentProfileDeleteView(AuthorizenetDeleteView):
@@ -24,14 +24,14 @@ class CustomerPaymentProfileDeleteView(AuthorizenetDeleteView):
     http_method_names = ["get", "post"]
     model = CustomerPaymentProfile
     success_url = reverse_lazy("terminusgps_payments:list payment profiles")
-    template_name = "terminusgps_payments/payment_profiles/delete.html"
+    template_name = "terminusgps_payments/customerpaymentprofile_delete.html"
 
 
 class CustomerPaymentProfileDetailView(AuthorizenetDetailView):
     content_type = "text/html"
     http_method_names = ["get"]
     model = CustomerPaymentProfile
-    template_name = "terminusgps_payments/payment_profiles/detail.html"
+    template_name = "terminusgps_payments/customerpaymentprofile_detail.html"
 
 
 class CustomerPaymentProfileListView(AuthorizenetListView):
@@ -41,4 +41,4 @@ class CustomerPaymentProfileListView(AuthorizenetListView):
     model = CustomerPaymentProfile
     ordering = "pk"
     paginate_by = 4
-    template_name = "terminusgps_payments/payment_profiles/list.html"
+    template_name = "terminusgps_payments/customerpaymentprofile_list.html"

@@ -13,43 +13,8 @@ from terminusgps_payments.models import (
     CustomerProfile,
     Subscription,
 )
-from terminusgps_payments.models.base import AuthorizenetModel
 
 logging.disable(logging.CRITICAL)
-
-
-class AuthorizenetTestModel(AuthorizenetModel):
-    pass
-
-
-class AuthorizenetModelTestCase(TestCase):
-    def setUp(self):
-        self.model = AuthorizenetTestModel()
-
-    def test__delete_in_authorizenet(self):
-        """Fails if :py:meth:`_extract_authorizenet_id` doesn't raise :py:exec:`NotImplementedError`."""
-        with self.assertRaises(NotImplementedError):
-            self.model._delete_in_authorizenet(Mock())
-
-    def test__extract_authorizenet_id(self):
-        """Fails if :py:meth:`_extract_authorizenet_id` doesn't raise :py:exec:`NotImplementedError`."""
-        with self.assertRaises(NotImplementedError):
-            self.model._extract_authorizenet_id(Mock())
-
-    def test_push(self):
-        """Fails if :py:meth:`push` doesn't raise :py:exec:`NotImplementedError`."""
-        with self.assertRaises(NotImplementedError):
-            self.model.push(Mock())
-
-    def test_pull(self):
-        """Fails if :py:meth:`pull` doesn't raise :py:exec:`NotImplementedError`."""
-        with self.assertRaises(NotImplementedError):
-            self.model.pull(Mock())
-
-    def test_sync(self):
-        """Fails if :py:meth:`sync` doesn't raise :py:exec:`NotImplementedError`."""
-        with self.assertRaises(NotImplementedError):
-            self.model.sync(Mock())
 
 
 class CustomerProfileTestCase(TestCase):

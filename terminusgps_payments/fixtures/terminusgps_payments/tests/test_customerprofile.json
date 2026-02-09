@@ -4,9 +4,9 @@
     "pk": 1,
     "fields": {
       "user": 1,
-      "email": "test1@domain.com",
-      "merchant_id": "TestMerchantId1",
-      "description": "TestDescription1"
+      "email": "testuser@domain.com",
+      "merchant_id": "TestMerchantId",
+      "description": "TestDescription"
     }
   },
   {
@@ -14,9 +14,9 @@
     "pk": 2,
     "fields": {
       "user": 2,
-      "email": "test2@domain.com",
-      "merchant_id": "TestMerchantId2",
-      "description": "TestDescription2"
+      "email": "testuseralt@domain.com",
+      "merchant_id": "TestMerchantId",
+      "description": "TestDescription"
     }
   }
 ]
