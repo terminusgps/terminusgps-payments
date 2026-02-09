@@ -66,9 +66,8 @@ class CustomerPaymentProfile(AuthorizenetModel):
         if self.pk and self.card_number:
             self.card_code = ""
             if not str(self.card_number).startswith("XXXX"):
-                self.card_number = f"XXXX{self.card_number[-4:]}"
-        super().save(**kwargs)
-        return
+                last_4 = str(self.card_number)[-4:]
+                self.card_number = f"XXXX{last_4}"
 
     def get_absolute_url(self) -> str:
         return reverse(

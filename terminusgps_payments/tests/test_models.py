@@ -144,6 +144,29 @@ class CustomerProfileTestCase(TestCase):
         self.assertIsInstance(result, int)
         self.assertEqual(result, 1)
 
+    def test_save_pull_and_sync(self):
+        """"""
+        mock_service = Mock(AuthorizenetService)
+        mock_service.execute.return_value = objectify.E.root(
+            objectify.E.profile(
+                objectify.E.merchantCustomerId("TestMerchantId1"),
+                objectify.E.email("test1@domain.com"),
+                objectify.E.description("TestDescription1"),
+            )
+        )
+
+        self.customerprofile.save(service=mock_service)
+
+    def test_save_push(self):
+        """"""
+        mock_service = Mock(AuthorizenetService)
+        mock_service.execute.return_value = objectify.E.root(
+            objectify.E.customerProfileId(1)
+        )
+
+        self.customerprofile.pk = None
+        self.customerprofile.save(service=mock_service)
+
 
 class CustomerAddressProfileTestCase(TestCase):
     fixtures = [
@@ -473,6 +496,17 @@ class CustomerPaymentProfileTestCase(TestCase):
         result = customerpaymentprofile._extract_authorizenet_id(mock_element)
         self.assertIsInstance(result, int)
         self.assertEqual(result, expected_pk)
+
+    def test_save_obfuscates_card_number(self):
+        """Fails if calling :py:meth:`save` didn't obfuscate the payment profile credit card."""
+        customerpaymentprofile = CustomerPaymentProfile.objects.get(pk=1)
+        customerpaymentprofile.card_number = "4111111111111111"
+        customerpaymentprofile.card_code = "444"
+        customerpaymentprofile.save(
+            service=Mock(AuthorizenetService), push=True
+        )
+        self.assertEqual(customerpaymentprofile.card_number, "XXXX1111")
+        self.assertEqual(customerpaymentprofile.card_code, "")
 
 
 class SubscriptionTestCase(TestCase):
