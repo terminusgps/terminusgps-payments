@@ -1,14 +1,4 @@
-from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase, override_settings
-
-from terminusgps_payments.forms import CustomerPaymentProfileCreateForm
-from terminusgps_payments.models import CustomerPaymentProfile
-from terminusgps_payments.views import (
-    CustomerPaymentProfileCreateView,
-    CustomerPaymentProfileDeleteView,
-    CustomerPaymentProfileDetailView,
-    CustomerPaymentProfileListView,
-)
+from django.test import TestCase, override_settings
 
 
 @override_settings(ROOT_URLCONF="src.urls")
@@ -243,7 +233,7 @@ class CustomerAddressProfileDeleteViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_not_allowed_http_methods(self):
-        """Fails if a non-GET request returns a response code other than 405."""
+        """Fails if a non-GET or non-POST request returns a response code other than 405."""
         response = self.client.put("/address-profiles/1/delete/")
         self.assertEqual(response.status_code, 405)
         response = self.client.patch("/address-profiles/1/delete/")
@@ -266,37 +256,49 @@ class CustomerPaymentProfileCreateViewTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.factory = RequestFactory()
-        self.view = CustomerPaymentProfileCreateView()
-        self.user = get_user_model().objects.get(pk=1)
-
-    def test_content_type(self):
-        request = self.factory.get("payment-profiles/create/")
-        request.user = self.user
-        self.view.setup(request)
-        self.assertEqual("text/html", self.view.content_type)
-
-    def test_form_class(self):
-        request = self.factory.get("payment-profiles/create/")
-        request.user = self.user
-        self.view.setup(request)
-        form = self.view.get_form()
-        self.assertIsInstance(form, CustomerPaymentProfileCreateForm)
-
-    def test_http_method_names(self):
-        request = self.factory.get("payment-profiles/create/")
-        request.user = self.user
-        self.view.setup(request)
-        self.assertIn("get", self.view.http_method_names)
-        self.assertIn("post", self.view.http_method_names)
-
-    def test_get_success_url(self):
-        request = self.factory.get("payment-profiles/create/")
-        request.user = self.user
-        self.view.setup(request)
-        self.assertEqual(
-            "/payment-profiles/list/", self.view.get_success_url()
+        self.client.login(
+            **{"username": "testuser", "password": "super_secure_password1!"}
         )
+
+    def tearDown(self):
+        self.client.logout()
+
+    def test_get_anonymous(self):
+        """Fails if a GET request from an anonymous client returns a response code other than 302."""
+        self.client.logout()
+        response = self.client.get("/address-profiles/create/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_authenticated(self):
+        """Fails if a GET request from an authenticated client returns a response code other than 200."""
+        response = self.client.get("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_anonymous(self):
+        """Fails if a POST request from an anonymous client returns a response code other than 302."""
+        self.client.logout()
+        response = self.client.post("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_authenticated(self):
+        """Fails if a POST request from an authenticated client returns a response code other than 200."""
+        response = self.client.post("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_not_allowed_http_methods(self):
+        """Fails if a non-GET or non-POST request returns a response code other than 405."""
+        response = self.client.put("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.patch("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.delete("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.head("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.options("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.trace("/payment-profiles/create/")
+        self.assertEqual(response.status_code, 405)
 
 
 @override_settings(ROOT_URLCONF="src.urls")
@@ -308,44 +310,52 @@ class CustomerPaymentProfileDetailViewTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.factory = RequestFactory()
-        self.view = CustomerPaymentProfileDetailView()
-        self.user = get_user_model().objects.get(pk=1)
-
-    def test_content_type(self):
-        request = self.factory.get("payment-profiles/1/detail/")
-        request.user = self.user
-        self.view.setup(request)
-        self.assertEqual("text/html", self.view.content_type)
-
-    def test_http_method_names(self):
-        request = self.factory.get("payment-profiles/1/detail/")
-        request.user = self.user
-        self.view.setup(request)
-        self.assertIn("get", self.view.http_method_names)
-
-    def test_get_queryset_authenticated_user(self):
-        """Fails if :py:meth:`get_queryset` doesn't return all objects associated with the user."""
-        request = self.factory.get("/payment-profiles/1/detail/")
-        request.user = self.user
-        self.view.setup(request)
-        self.assertQuerySetEqual(
-            self.view.get_queryset(),
-            CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
+        self.client.login(
+            **{"username": "testuser", "password": "super_secure_password1!"}
         )
 
-    def test_get_queryset_anonymous_user(self):
-        """Fails if :py:meth:`get_queryset` returns anything other than an empty queryset for an anonymous user."""
-        request = self.factory.get("/payment-profiles/1/detail/")
-        self.view.setup(request)
-        self.assertQuerySetEqual(
-            self.view.get_queryset(),
-            CustomerPaymentProfile.objects.none(),
-            ordered=False,
+    def tearDown(self):
+        self.client.logout()
+
+    def test_get_anonymous(self):
+        """Fails if a GET request from an anonymous client returns a response code other than 302."""
+        self.client.logout()
+        response = self.client.get("/address-profiles/1/detail/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_authenticated(self):
+        """Fails if a GET request from an authenticated client returns a response code other than 200."""
+        response = self.client.get("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_get_authenticated_other(self):
+        """Fails if a GET request from another authenticated client returns a response code other than 404."""
+        self.client.login(
+            **{
+                "username": "testuseralt",
+                "password": "super_secure_password1!",
+            }
         )
+        response = self.client.get("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 404)
+        self.client.logout()
+
+    def test_not_allowed_http_methods(self):
+        """Fails if a non-GET request returns a response code other than 405."""
+        response = self.client.post("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.put("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.patch("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.delete("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.head("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.options("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.trace("/payment-profiles/1/detail/")
+        self.assertEqual(response.status_code, 405)
 
 
 @override_settings(ROOT_URLCONF="src.urls")
@@ -357,16 +367,51 @@ class CustomerPaymentProfileListViewTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.view = CustomerPaymentProfileListView()
-        request = RequestFactory().get("/payment-profiles/list/")
-        request.user = get_user_model().objects.get(pk=1)
-        self.view.setup(request)
+        self.client.login(
+            **{"username": "testuser", "password": "super_secure_password1!"}
+        )
 
-    def test_content_type(self):
-        self.assertEqual("text/html", self.view.content_type)
+    def tearDown(self):
+        self.client.logout()
 
-    def test_http_method_names(self):
-        self.assertIn("get", self.view.http_method_names)
+    def test_get_anonymous(self):
+        """Fails if a GET request from an anonymous client returns a response code other than 302."""
+        self.client.logout()
+        response = self.client.get("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_authenticated(self):
+        """Fails if a GET request from an authenticated client returns a response code other than 200."""
+        response = self.client.get("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_get_authenticated_other(self):
+        self.client.login(
+            **{
+                "username": "testuseralt",
+                "password": "super_secure_password1!",
+            }
+        )
+        response = self.client.get("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 200)
+        self.client.logout()
+
+    def test_not_allowed_http_methods(self):
+        """Fails if a non-GET request returns a response code other than 405."""
+        response = self.client.post("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.put("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.patch("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.delete("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.head("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.options("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.trace("/payment-profiles/list/")
+        self.assertEqual(response.status_code, 405)
 
 
 @override_settings(ROOT_URLCONF="src.urls")
@@ -378,19 +423,58 @@ class CustomerPaymentProfileDeleteViewTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.view = CustomerPaymentProfileDeleteView()
-        request = RequestFactory().get("/payment-profiles/1/delete/")
-        request.user = get_user_model().objects.get(pk=1)
-        self.view.setup(request)
-
-    def test_content_type(self):
-        self.assertEqual("text/html", self.view.content_type)
-
-    def test_http_method_names(self):
-        self.assertIn("get", self.view.http_method_names)
-        self.assertIn("post", self.view.http_method_names)
-
-    def test_get_success_url(self):
-        self.assertEqual(
-            "/payment-profiles/list/", self.view.get_success_url()
+        self.client.login(
+            **{"username": "testuser", "password": "super_secure_password1!"}
         )
+
+    def tearDown(self):
+        self.client.logout()
+
+    def test_get_anonymous(self):
+        """Fails if a GET request from an anonymous client returns a response code other than 302."""
+        self.client.logout()
+        response = self.client.get("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_authenticated(self):
+        """Fails if a GET request from an authenticated client returns a response code other than 200."""
+        response = self.client.get("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_get_authenticated_other(self):
+        """Fails if a GET request from another authenticated client returns a response code other than 404."""
+        self.client.login(
+            **{
+                "username": "testuseralt",
+                "password": "super_secure_password1!",
+            }
+        )
+        response = self.client.get("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 404)
+        self.client.logout()
+
+    def test_post_anonymous(self):
+        """Fails if a POST request from an anonymous client returns a response code other than 302."""
+        self.client.logout()
+        response = self.client.post("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_authenticated(self):
+        """Fails if a POST request from an authenticated client returns a response code other than 200."""
+        response = self.client.post("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_not_allowed_http_methods(self):
+        """Fails if a non-GET or non-POST request returns a response code other than 405."""
+        response = self.client.put("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.patch("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.delete("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.head("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.options("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 405)
+        response = self.client.trace("/payment-profiles/1/delete/")
+        self.assertEqual(response.status_code, 405)
