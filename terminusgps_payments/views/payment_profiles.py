@@ -7,7 +7,16 @@ from terminusgps_payments.views.generic import (
     AuthorizenetDeleteView,
     AuthorizenetDetailView,
     AuthorizenetListView,
+    AuthorizenetSyncView,
 )
+
+
+class CustomerPaymentProfileSyncView(AuthorizenetSyncView):
+    content_type = "text/html"
+    http_method_names = ["get"]
+    id_attr = "customerPaymentProfileId"
+    list_attr = "paymentProfiles"
+    model = CustomerPaymentProfile
 
 
 class CustomerPaymentProfileCreateView(AuthorizenetCreateView):

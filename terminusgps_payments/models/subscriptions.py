@@ -3,6 +3,7 @@ import decimal
 
 from authorizenet import apicontractsv1
 from django.db import models
+from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext_lazy as _
 from lxml.objectify import ObjectifiedElement
@@ -62,6 +63,11 @@ class Subscription(AuthorizenetModel):
     class Meta:
         verbose_name = _("subscription")
         verbose_name_plural = _("subscriptions")
+
+    def get_absolute_url(self):
+        return reverse(
+            "terminusgps_payments:detail subscriptions", kwargs={"pk": self.pk}
+        )
 
     def push(
         self, service: AuthorizenetService, reference_id: str | None = None
