@@ -1,7 +1,6 @@
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerAddressProfileCreateViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -54,7 +53,6 @@ class CustomerAddressProfileCreateViewTestCase(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerAddressProfileDetailViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -111,7 +109,6 @@ class CustomerAddressProfileDetailViewTestCase(TestCase):
         self.client.logout()
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerAddressProfileListViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -182,7 +179,6 @@ class CustomerAddressProfileListViewTestCase(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerAddressProfileDeleteViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -248,7 +244,6 @@ class CustomerAddressProfileDeleteViewTestCase(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerPaymentProfileCreateViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -301,7 +296,6 @@ class CustomerPaymentProfileCreateViewTestCase(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerPaymentProfileDetailViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -358,7 +352,6 @@ class CustomerPaymentProfileDetailViewTestCase(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerPaymentProfileListViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -414,7 +407,6 @@ class CustomerPaymentProfileListViewTestCase(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-@override_settings(ROOT_URLCONF="src.urls")
 class CustomerPaymentProfileDeleteViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
