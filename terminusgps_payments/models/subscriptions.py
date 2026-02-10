@@ -64,6 +64,9 @@ class Subscription(AuthorizenetModel):
         verbose_name = _("subscription")
         verbose_name_plural = _("subscriptions")
 
+    def __str__(self) -> str:
+        return str(self.name) if self.name else f"Subscription #{self.pk}"
+
     def get_absolute_url(self):
         return reverse(
             "terminusgps_payments:detail subscriptions", kwargs={"pk": self.pk}
