@@ -5,26 +5,6 @@ from . import views
 app_name = "terminusgps_payments"
 urlpatterns = [
     path(
-        "subscriptions/create/",
-        views.SubscriptionCreateView.as_view(),
-        name="create subscriptions",
-    ),
-    path(
-        "subscriptions/<int:pk>/detail/",
-        views.SubscriptionDetailView.as_view(),
-        name="detail subscriptions",
-    ),
-    path(
-        "subscriptions/<int:pk>/update/",
-        views.SubscriptionUpdateView.as_view(),
-        name="update subscriptions",
-    ),
-    path(
-        "subscriptions/<int:pk>/delete/",
-        views.SubscriptionDeleteView.as_view(),
-        name="delete subscriptions",
-    ),
-    path(
         "address-profiles/create/",
         views.CustomerAddressProfileCreateView.as_view(),
         name="create address profiles",

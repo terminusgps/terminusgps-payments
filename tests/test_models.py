@@ -356,18 +356,18 @@ class CustomerPaymentProfileTestCase(TestCase):
         customerpaymentprofile.sync(
             elem=objectify.E.root(
                 objectify.E.defaultPaymentProfile(1),
-                objectify.E.billTo(
-                    objectify.E.firstName(first_name),
-                    objectify.E.lastName(last_name),
-                    objectify.E.company(company),
-                    objectify.E.address(address),
-                    objectify.E.city(city),
-                    objectify.E.state(state),
-                    objectify.E.country(country),
-                    objectify.E.zip(zip),
-                    objectify.E.phoneNumber(phone_number),
-                ),
                 objectify.E.paymentProfile(
+                    objectify.E.billTo(
+                        objectify.E.firstName(first_name),
+                        objectify.E.lastName(last_name),
+                        objectify.E.company(company),
+                        objectify.E.address(address),
+                        objectify.E.city(city),
+                        objectify.E.state(state),
+                        objectify.E.country(country),
+                        objectify.E.zip(zip),
+                        objectify.E.phoneNumber(phone_number),
+                    ),
                     objectify.E.payment(
                         objectify.E.bankAccount(
                             objectify.E.accountType(account_type),
@@ -377,7 +377,7 @@ class CustomerPaymentProfileTestCase(TestCase):
                             objectify.E.eCheckType(echeck_type),
                             objectify.E.bankName(bank_name),
                         )
-                    )
+                    ),
                 ),
             )
         )
@@ -416,24 +416,24 @@ class CustomerPaymentProfileTestCase(TestCase):
         customerpaymentprofile.sync(
             elem=objectify.E.root(
                 objectify.E.defaultPaymentProfile(1),
-                objectify.E.billTo(
-                    objectify.E.firstName(first_name),
-                    objectify.E.lastName(last_name),
-                    objectify.E.company(company),
-                    objectify.E.address(address),
-                    objectify.E.city(city),
-                    objectify.E.state(state),
-                    objectify.E.country(country),
-                    objectify.E.zip(zip),
-                    objectify.E.phoneNumber(phone_number),
-                ),
                 objectify.E.paymentProfile(
+                    objectify.E.billTo(
+                        objectify.E.firstName(first_name),
+                        objectify.E.lastName(last_name),
+                        objectify.E.company(company),
+                        objectify.E.address(address),
+                        objectify.E.city(city),
+                        objectify.E.state(state),
+                        objectify.E.country(country),
+                        objectify.E.zip(zip),
+                        objectify.E.phoneNumber(phone_number),
+                    ),
                     objectify.E.payment(
                         objectify.E.creditCard(
                             objectify.E.cardNumber(card_number),
                             objectify.E.cardType(card_type),
                         )
-                    )
+                    ),
                 ),
             )
         )

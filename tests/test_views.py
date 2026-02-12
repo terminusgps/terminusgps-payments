@@ -1,60 +1,6 @@
 from django.test import TestCase
 
 
-class SubscriptionCreateViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/subscriptions/create/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/subscriptions/create/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_post_anonymous(self):
-        """Fails if a POST request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.post("/subscriptions/create/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_post_authenticated(self):
-        """Fails if a POST request from an authenticated client returns a response code other than 200."""
-        response = self.client.post("/subscriptions/create/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET or non-POST request returns a response code other than 405."""
-        response = self.client.put("/subscriptions/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/subscriptions/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/subscriptions/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/subscriptions/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/subscriptions/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/subscriptions/create/")
-        self.assertEqual(response.status_code, 405)
-
-
 class CustomerAddressProfileCreateViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",

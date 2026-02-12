@@ -1,9 +1,0 @@
-{% extends "terminusgps_payments/layout.html" %}
-{% partialdef main %}
-<h3>{{ subscription.name }}</h3>
-<p>${{ subscription.amount|floatformat:'2g' }}/mo</p>
-<p>Status: {{ subscription.status|title }}</p>
-{% endpartialdef main %}
-{% block content %}
-{% partial main %}
-{% endblock content %}
