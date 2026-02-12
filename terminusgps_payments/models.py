@@ -383,23 +383,25 @@ class CustomerPaymentProfile(AuthorizenetModel):
         if hasattr(elem, "defaultPaymentProfile"):
             self.is_default = bool(getattr(elem, "defaultPaymentProfile"))
         if hasattr(elem, "paymentProfile"):
-            if hasattr(elem, "billTo"):
-                self.first_name = getattr(elem.billTo, "firstName", "")
-                self.last_name = getattr(elem.billTo, "lastName", "")
-                self.company = getattr(elem.billTo, "company", "")
-                self.address = getattr(elem.billTo, "address", "")
-                self.city = getattr(elem.billTo, "city", "")
-                self.state = getattr(elem.billTo, "state", "")
-                self.country = getattr(elem.billTo, "country", "")
-                self.zip = getattr(elem.billTo, "zip", "")
-                self.phone_number = getattr(elem.billTo, "phoneNumber", "")
+            if hasattr(elem.paymentProfile, "billTo"):
+                address = elem.paymentProfile.billTo
+                self.first_name = getattr(address, "firstName", "")
+                self.last_name = getattr(address, "lastName", "")
+                self.company = getattr(address, "company", "")
+                self.address = getattr(address, "address", "")
+                self.city = getattr(address, "city", "")
+                self.state = getattr(address, "state", "")
+                self.country = getattr(address, "country", "")
+                self.zip = getattr(address, "zip", "")
+                self.phone_number = getattr(address, "phoneNumber", "")
             if hasattr(elem.paymentProfile, "payment"):
-                if hasattr(elem.paymentProfile.payment, "creditCard"):
-                    ca = elem.paymentProfile.payment.creditCard
+                payment = elem.paymentProfile.payment
+                if hasattr(payment, "creditCard"):
+                    ca = payment.creditCard
                     self.card_number = str(getattr(ca, "cardNumber", ""))
                     self.card_type = str(getattr(ca, "cardType", ""))
-                if hasattr(elem.paymentProfile.payment, "bankAccount"):
-                    ba = elem.paymentProfile.payment.bankAccount
+                if hasattr(payment, "bankAccount"):
+                    ba = payment.bankAccount
                     self.account_type = str(getattr(ba, "accountType", ""))
                     self.account_number = str(getattr(ba, "accountNumber", ""))
                     self.routing_number = str(getattr(ba, "routingNumber", ""))
