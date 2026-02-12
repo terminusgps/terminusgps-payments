@@ -10,6 +10,7 @@ from django.views.generic import (
     DeleteView,
     DetailView,
     ListView,
+    TemplateView,
     UpdateView,
     View,
 )
@@ -24,6 +25,11 @@ from terminusgps_payments.views.mixins import (
     AuthorizenetSingleObjectMixin,
     HtmxTemplateResponseMixin,
 )
+
+
+class HtmxTemplateView(HtmxTemplateResponseMixin, TemplateView):
+    content_type = "text/html"
+    http_method_names = ["get"]
 
 
 class AuthorizenetSyncView(LoginRequiredMixin, View):

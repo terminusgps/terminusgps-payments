@@ -1,0 +1,11 @@
+{% extends "terminusgps_payments/layout.html" %}
+{% partialdef main %}
+<form method="post" action="{% url 'terminusgps_payments:create subscriptions' %}">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Submit</button>
+</form>
+{% endpartialdef main %}
+{% block content %}
+{% partial main %}
+{% endblock content %}

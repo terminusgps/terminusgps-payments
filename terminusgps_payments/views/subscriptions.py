@@ -1,9 +1,13 @@
-import datetime
-import decimal
 import typing
 
 from django import forms
+from django.core.exceptions import ValidationError
+from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse_lazy
+from terminusgps.authorizenet.service import (
+    AuthorizenetControllerExecutionError,
+    AuthorizenetService,
+)
 
 from terminusgps_payments.models import (
     CustomerAddressProfile,
@@ -35,17 +39,26 @@ class SubscriptionCreateView(AuthorizenetCreateView):
         "address_profile",
     ]
     http_method_names = ["get", "post"]
-    initial = {
-        "amount": decimal.Decimal("24.95"),
-        "name": "Terminus GPS Subscription",
-        "total_occurrences": 9999,
-        "trial_amount": decimal.Decimal("0.00"),
-        "trial_occurrences": 0,
-        "interval_length": 1,
-        "interval_unit": Subscription.SubscriptionIntervalUnit.MONTHS,
-    }
     model = Subscription
     template_name = "terminusgps_payments/subscription_create.html"
+
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        try:
+            self.object = form.save(commit=False)
+            self.object.save(push=True)
+            return HttpResponseRedirect(self.object.get_absolute_url())
+        except AuthorizenetControllerExecutionError as error:
+            match error.code:
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            "%(error)s",
+                            code="invalid",
+                            params={"error": error},
+                        ),
+                    )
+            return self.form_invalid(form=form)
 
     def get_initial(self, **kwargs) -> dict[str, typing.Any]:
         try:
@@ -56,7 +69,6 @@ class SubscriptionCreateView(AuthorizenetCreateView):
             customer_profile = None
 
         initial: dict[str, typing.Any] = super().get_initial(**kwargs)
-        initial["start_date"] = datetime.date.today()
         initial["customer_profile"] = customer_profile
         return initial
 
@@ -97,6 +109,25 @@ class SubscriptionDeleteView(AuthorizenetDeleteView):
     model = Subscription
     success_url = reverse_lazy("terminusgps_payments:create subscriptions")
     template_name = "terminusgps_payments/subscription_delete.html"
+
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        try:
+            service = AuthorizenetService()
+            self.object._delete_in_authorizenet(service=service)
+            self.object.delete()
+            return HttpResponseRedirect(self.success_url)
+        except AuthorizenetControllerExecutionError as error:
+            match error.code:
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            "%(error)s",
+                            code="invalid",
+                            params={"error": error},
+                        ),
+                    )
+            return self.form_invalid(form=form)
 
 
 class SubscriptionUpdateView(AuthorizenetUpdateView):

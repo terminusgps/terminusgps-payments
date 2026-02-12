@@ -1,0 +1,12 @@
+[
+  {
+    "model": "terminusgps_payments.Cart",
+    "pk": 1,
+    "fields": {
+      "sid": null,
+      "crt_date": "2026-02-11T20:47:48.859Z",
+      "mod_date": "2026-02-11T20:47:48.859Z",
+      "user": 1
+    }
+  }
+]

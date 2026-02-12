@@ -1,0 +1,67 @@
+[
+  {
+    "model": "terminusgps_payments.CartItem",
+    "pk": 1,
+    "fields": {
+      "name": "Apple",
+      "price": "1.00",
+      "quantity": 1,
+      "crt_date": "2026-02-11T20:44:57.175Z",
+      "mod_date": "2026-02-11T20:44:57.175Z",
+      "total": "1.00",
+      "cart": 1
+    }
+  },
+  {
+    "model": "terminusgps_payments.CartItem",
+    "pk": 2,
+    "fields": {
+      "name": "Banana",
+      "price": "1.50",
+      "quantity": 6,
+      "crt_date": "2026-02-11T20:45:05.415Z",
+      "mod_date": "2026-02-11T20:45:10.283Z",
+      "total": "9.00",
+      "cart": 1
+    }
+  },
+  {
+    "model": "terminusgps_payments.CartItem",
+    "pk": 3,
+    "fields": {
+      "name": "Cherry",
+      "price": "0.50",
+      "quantity": 4,
+      "crt_date": "2026-02-11T20:45:25.299Z",
+      "mod_date": "2026-02-11T20:45:25.299Z",
+      "total": "2.00",
+      "cart": 1
+    }
+  },
+  {
+    "model": "terminusgps_payments.CartItem",
+    "pk": 4,
+    "fields": {
+      "name": "Kiwi",
+      "price": "0.75",
+      "quantity": 2,
+      "crt_date": "2026-02-11T20:45:39.097Z",
+      "mod_date": "2026-02-11T20:45:39.097Z",
+      "total": "1.50",
+      "cart": 1
+    }
+  },
+  {
+    "model": "terminusgps_payments.CartItem",
+    "pk": 5,
+    "fields": {
+      "name": "Pear",
+      "price": "1.25",
+      "quantity": 3,
+      "crt_date": "2026-02-11T20:45:50.830Z",
+      "mod_date": "2026-02-11T20:45:50.830Z",
+      "total": "3.75",
+      "cart": 1
+    }
+  }
+]
