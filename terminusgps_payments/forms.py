@@ -186,3 +186,69 @@ class CustomerPaymentProfileCreateForm(forms.ModelForm):
             raise ValidationError(
                 _("Please fill out all bank account fields."), code="invalid"
             )
+
+
+class SubscriptionCreateForm(forms.ModelForm):
+    class Meta:
+        model = models.Subscription
+        fields = [
+            "name",
+            "amount",
+            "address_profile",
+            "payment_profile",
+            "total_occurrences",
+            "trial_occurrences",
+            "trial_amount",
+            "interval_length",
+            "interval_unit",
+        ]
+        widgets = {
+            "address_profile": forms.widgets.Select(
+                attrs={"aria-required": "true"}
+            ),
+            "payment_profile": forms.widgets.Select(
+                attrs={"aria-required": "true"}
+            ),
+            "name": forms.widgets.TextInput(attrs={"aria-required": "true"}),
+            "amount": forms.widgets.TextInput(attrs={"aria-required": "true"}),
+            "total_occurrences": forms.widgets.HiddenInput(),
+            "trial_occurrences": forms.widgets.HiddenInput(),
+            "trial_amount": forms.widgets.HiddenInput(),
+            "interval_length": forms.widgets.HiddenInput(),
+            "interval_unit": forms.widgets.HiddenInput(),
+        }
+
+    def __init__(self, *args, **kwargs) -> None:
+        customer_profile = kwargs.pop("customer_profile", None)
+        address_qs = (
+            customer_profile.address_profiles.all()
+            if customer_profile is not None
+            else models.CustomerAddressProfile.objects.none()
+        )
+        payment_qs = (
+            customer_profile.payment_profiles.all()
+            if customer_profile is not None
+            else models.CustomerPaymentProfile.objects.none()
+        )
+
+        address_field = self.base_fields["address_profile"]
+        payment_field = self.base_fields["payment_profile"]
+        address_field.queryset = address_qs
+        address_field.empty_label = None
+        payment_field.queryset = payment_qs
+        payment_field.empty_label = None
+        return super().__init__(*args, **kwargs)
+
+
+class SubscriptionUpdateForm(forms.ModelForm):
+    class Meta:
+        model = models.Subscription
+        fields = ["address_profile", "payment_profile"]
+        widgets = {
+            "address_profile": forms.widgets.Select(
+                attrs={"aria-required": "true"}
+            ),
+            "payment_profile": forms.widgets.Select(
+                attrs={"aria-required": "true"}
+            ),
+        }

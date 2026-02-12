@@ -1,4 +1,11 @@
-from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory, TestCase
+
+from terminusgps_payments.models import (
+    CustomerAddressProfile,
+    CustomerPaymentProfile,
+)
+from terminusgps_payments.views import SubscriptionCreateView
 
 
 class CustomerAddressProfileCreateViewTestCase(TestCase):
@@ -470,3 +477,45 @@ class CustomerPaymentProfileDeleteViewTestCase(TestCase):
         self.assertEqual(response.status_code, 405)
         response = self.client.trace("/payment-profiles/1/delete/")
         self.assertEqual(response.status_code, 405)
+
+
+class SubscriptionCreateViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_customeraddressprofile.json",
+        "terminusgps_payments/tests/test_customerpaymentprofile.json",
+    ]
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.user = get_user_model().objects.get(pk=1)
+
+    def test_get_form_kwargs(self):
+        """Fails if :py:meth:`get_form_kwargs` doesn't add :py:attr:`customer_profile` to the form kwargs."""
+        request = self.factory.get("/subscriptions/create/")
+        request.user = self.user
+        view = SubscriptionCreateView()
+        view.setup(request)
+        self.assertIn("customer_profile", view.get_form_kwargs())
+
+    def test_get_form(self):
+        request = self.factory.get("/subscriptions/create/")
+        request.user = self.user
+        view = SubscriptionCreateView()
+        view.setup(request)
+        form = view.get_form(form_class=None)
+        self.assertQuerySetEqual(
+            form.fields["payment_profile"].queryset,
+            CustomerPaymentProfile.objects.filter(
+                customer_profile__user=self.user
+            ),
+            ordered=False,
+        )
+        self.assertQuerySetEqual(
+            form.fields["address_profile"].queryset,
+            CustomerAddressProfile.objects.filter(
+                customer_profile__user=self.user
+            ),
+            ordered=False,
+        )
