@@ -382,17 +382,17 @@ class CustomerPaymentProfile(AuthorizenetModel):
     def sync(self, elem: ObjectifiedElement) -> None:
         if hasattr(elem, "defaultPaymentProfile"):
             self.is_default = bool(getattr(elem, "defaultPaymentProfile"))
-        if hasattr(elem, "billTo"):
-            self.first_name = getattr(elem.billTo, "firstName", "")
-            self.last_name = getattr(elem.billTo, "lastName", "")
-            self.company = getattr(elem.billTo, "company", "")
-            self.address = getattr(elem.billTo, "address", "")
-            self.city = getattr(elem.billTo, "city", "")
-            self.state = getattr(elem.billTo, "state", "")
-            self.country = getattr(elem.billTo, "country", "")
-            self.zip = getattr(elem.billTo, "zip", "")
-            self.phone_number = getattr(elem.billTo, "phoneNumber", "")
         if hasattr(elem, "paymentProfile"):
+            if hasattr(elem, "billTo"):
+                self.first_name = getattr(elem.billTo, "firstName", "")
+                self.last_name = getattr(elem.billTo, "lastName", "")
+                self.company = getattr(elem.billTo, "company", "")
+                self.address = getattr(elem.billTo, "address", "")
+                self.city = getattr(elem.billTo, "city", "")
+                self.state = getattr(elem.billTo, "state", "")
+                self.country = getattr(elem.billTo, "country", "")
+                self.zip = getattr(elem.billTo, "zip", "")
+                self.phone_number = getattr(elem.billTo, "phoneNumber", "")
             if hasattr(elem.paymentProfile, "payment"):
                 if hasattr(elem.paymentProfile.payment, "creditCard"):
                     ca = elem.paymentProfile.payment.creditCard
