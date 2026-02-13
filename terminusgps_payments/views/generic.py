@@ -105,7 +105,6 @@ class AuthorizenetCreateView(
                             params={"error": error},
                         ),
                     )
-            print(f"{form.errors = }")
             return self.form_invalid(form=form)
 
     def get_initial(self, **kwargs) -> dict[str, typing.Any]:
