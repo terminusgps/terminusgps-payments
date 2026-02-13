@@ -210,8 +210,8 @@ class SubscriptionCreateForm(forms.ModelForm):
             "payment_profile": forms.widgets.Select(
                 attrs={"aria-required": "true"}
             ),
-            "name": forms.widgets.TextInput(attrs={"aria-required": "true"}),
-            "amount": forms.widgets.TextInput(attrs={"aria-required": "true"}),
+            "name": forms.widgets.HiddenInput(),
+            "amount": forms.widgets.HiddenInput(),
             "customer_profile": forms.widgets.HiddenInput(),
             "total_occurrences": forms.widgets.HiddenInput(),
             "trial_occurrences": forms.widgets.HiddenInput(),
