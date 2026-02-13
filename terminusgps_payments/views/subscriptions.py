@@ -16,6 +16,11 @@ class SubscriptionCreateView(AuthorizenetCreateView):
     model = Subscription
     template_name = "terminusgps_payments/subscription_create.html"
 
+    def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
+        context = super().get_context_data(**kwargs)
+        context["amount"] = self.get_initial().get("amount")
+        return context
+
     def get_form_kwargs(self) -> dict[str, typing.Any]:
         try:
             customer_profile = (
