@@ -1,4 +1,4 @@
-import typing
+import logging
 
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
@@ -11,7 +11,7 @@ from terminusgps_payments.forms import (
     SubscriptionCreateForm,
     SubscriptionUpdateForm,
 )
-from terminusgps_payments.models import CustomerProfile, Subscription
+from terminusgps_payments.models import Subscription
 from terminusgps_payments.views.generic import (
     AuthorizenetCreateView,
     AuthorizenetDeleteView,
@@ -19,6 +19,8 @@ from terminusgps_payments.views.generic import (
     AuthorizenetUpdateView,
     HtmxTemplateView,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SubscriptionCreateView(AuthorizenetCreateView):
@@ -28,20 +30,6 @@ class SubscriptionCreateView(AuthorizenetCreateView):
     model = Subscription
     template_name = "terminusgps_payments/subscription_create.html"
 
-    def get_form_kwargs(self) -> dict[str, typing.Any]:
-        kwargs = super().get_form_kwargs()
-        try:
-            kwargs.update(
-                {
-                    "customer_profile": CustomerProfile.objects.get(
-                        user=self.request.user
-                    )
-                }
-            )
-            return kwargs
-        except CustomerProfile.DoesNotExist:
-            return kwargs
-
     def form_valid(self, form: SubscriptionCreateForm) -> HttpResponse:
         try:
             self.object = form.save(commit=False)
@@ -50,6 +38,7 @@ class SubscriptionCreateView(AuthorizenetCreateView):
         except AuthorizenetControllerExecutionError as error:
             match error.code:
                 case _:
+                    logger.warning(error)
                     form.add_error(
                         None,
                         ValidationError(
