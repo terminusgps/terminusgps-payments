@@ -194,6 +194,7 @@ class SubscriptionCreateForm(forms.ModelForm):
         fields = [
             "name",
             "amount",
+            "customer_profile",
             "address_profile",
             "payment_profile",
             "total_occurrences",
@@ -211,6 +212,7 @@ class SubscriptionCreateForm(forms.ModelForm):
             ),
             "name": forms.widgets.TextInput(attrs={"aria-required": "true"}),
             "amount": forms.widgets.TextInput(attrs={"aria-required": "true"}),
+            "customer_profile": forms.widgets.HiddenInput(),
             "total_occurrences": forms.widgets.HiddenInput(),
             "trial_occurrences": forms.widgets.HiddenInput(),
             "trial_amount": forms.widgets.HiddenInput(),
@@ -220,23 +222,20 @@ class SubscriptionCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs) -> None:
         customer_profile = kwargs.pop("customer_profile", None)
-        address_qs = (
-            customer_profile.address_profiles.all()
-            if customer_profile is not None
-            else models.CustomerAddressProfile.objects.none()
-        )
-        payment_qs = (
+        payment_profile_field = self.base_fields["payment_profile"]
+        address_profile_field = self.base_fields["address_profile"]
+        payment_profile_field.queryset = (
             customer_profile.payment_profiles.all()
             if customer_profile is not None
             else models.CustomerPaymentProfile.objects.none()
         )
-
-        address_field = self.base_fields["address_profile"]
-        payment_field = self.base_fields["payment_profile"]
-        address_field.queryset = address_qs
-        address_field.empty_label = None
-        payment_field.queryset = payment_qs
-        payment_field.empty_label = None
+        payment_profile_field.empty_label = None
+        address_profile_field.queryset = (
+            customer_profile.address_profiles.all()
+            if customer_profile is not None
+            else models.CustomerAddressProfile.objects.none()
+        )
+        address_profile_field.empty_label = None
         return super().__init__(*args, **kwargs)
 
 
@@ -252,3 +251,21 @@ class SubscriptionUpdateForm(forms.ModelForm):
                 attrs={"aria-required": "true"}
             ),
         }
+
+    def __init__(self, *args, **kwargs) -> None:
+        customer_profile = kwargs.pop("customer_profile", None)
+        payment_profile_field = self.base_fields["payment_profile"]
+        address_profile_field = self.base_fields["address_profile"]
+        payment_profile_field.queryset = (
+            customer_profile.payment_profiles.all()
+            if customer_profile is not None
+            else models.CustomerPaymentProfile.objects.none()
+        )
+        payment_profile_field.empty_label = None
+        address_profile_field.queryset = (
+            customer_profile.address_profiles.all()
+            if customer_profile is not None
+            else models.CustomerAddressProfile.objects.none()
+        )
+        address_profile_field.empty_label = None
+        return super().__init__(*args, **kwargs)

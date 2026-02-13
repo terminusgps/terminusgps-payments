@@ -1,4 +1,5 @@
 from django.urls import path, reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 from . import forms, models
 from .views.generic import (
@@ -127,5 +128,34 @@ urlpatterns = [
             template_name="terminusgps_payments/customerpaymentprofile_delete_success.html"
         ),
         name="delete payment profiles success",
+    ),
+    path(
+        "subscriptions/<int:pk>/detail/",
+        AuthorizenetDetailView.as_view(
+            model=models.Subscription,
+            template_name="terminusgps_payments/subscription_detail.html",
+        ),
+        name="detail subscriptions",
+    ),
+    path(
+        "subscriptions/<int:pk>/delete/",
+        AuthorizenetDeleteView.as_view(
+            model=models.Subscription,
+            template_name="terminusgps_payments/subscription_delete.html",
+            success_url=reverse_lazy(
+                "terminusgps_payments:delete subscriptions success"
+            ),
+        ),
+        name="delete subscriptions",
+    ),
+    path(
+        "subscriptions/delete/success/",
+        HtmxTemplateView.as_view(
+            template_name="terminusgps_payments/subscription_delete_success.html",
+            extra_context={
+                "message": _("Your subscription was successfully canceled.")
+            },
+        ),
+        name="delete subscriptions success",
     ),
 ]

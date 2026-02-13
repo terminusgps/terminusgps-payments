@@ -50,6 +50,8 @@ class AuthorizenetSyncView(LoginRequiredMixin, View):
 
     @transaction.atomic
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        if self.model is None:
+            return HttpResponse(status=400)
         try:
             customer_profile = CustomerProfile.objects.get(user=request.user)
             service = AuthorizenetService()
@@ -87,21 +89,23 @@ class AuthorizenetCreateView(
     http_method_names = ["get", "post"]
     model = None
 
-    def get_success_url(self):
-        return self.success_url
-
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
             self.object = form.save(commit=False)
             self.object.save(push=True)
             return HttpResponseRedirect(self.get_success_url())
         except AuthorizenetControllerExecutionError as error:
-            form.add_error(
-                None,
-                ValidationError(
-                    "%(error)s", code="invalid", params={"error": str(error)}
-                ),
-            )
+            match error.code:
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            "%(error)s",
+                            code="invalid",
+                            params={"error": error},
+                        ),
+                    )
+            print(f"{form.errors = }")
             return self.form_invalid(form=form)
 
     def get_initial(self, **kwargs) -> dict[str, typing.Any]:
@@ -139,23 +143,22 @@ class AuthorizenetDeleteView(
     content_type = "text/html"
     http_method_names = ["get", "post"]
 
-    def get_success_url(self):
-        return self.success_url
-
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
-            service = AuthorizenetService()
-            success_url = self.get_success_url()
-            self.object._delete_in_authorizenet(service=service)
+            self.object._delete_in_authorizenet(service=AuthorizenetService())
             self.object.delete()
-            return HttpResponseRedirect(success_url)
+            return HttpResponseRedirect(self.success_url)
         except AuthorizenetControllerExecutionError as error:
-            form.add_error(
-                None,
-                ValidationError(
-                    "%(error)s", code="invalid", params={"error": str(error)}
-                ),
-            )
+            match error.code:
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            "%(error)s",
+                            code="invalid",
+                            params={"error": str(error)},
+                        ),
+                    )
             return self.form_invalid(form=form)
 
 
@@ -176,7 +179,7 @@ class AuthorizenetUpdateView(
     UpdateView,
 ):
     content_type = "text/html"
-    http_method_names = ["get"]
+    http_method_names = ["get", "post"]
 
     def form_valid(self, form: forms.ModelForm) -> HttpResponse:
         try:
@@ -184,10 +187,14 @@ class AuthorizenetUpdateView(
             self.object.save(push=True)
             return HttpResponseRedirect(self.get_success_url())
         except AuthorizenetControllerExecutionError as error:
-            form.add_error(
-                None,
-                ValidationError(
-                    "%(error)s", code="invalid", params={"error": str(error)}
-                ),
-            )
+            match error.code:
+                case _:
+                    form.add_error(
+                        None,
+                        ValidationError(
+                            "%(error)s",
+                            code="invalid",
+                            params={"error": error},
+                        ),
+                    )
             return self.form_invalid(form=form)

@@ -1,78 +1,51 @@
-import logging
-
-from django.core.exceptions import ValidationError
-from django.http import HttpResponse, HttpResponseRedirect
-from terminusgps.authorizenet.service import (
-    AuthorizenetControllerExecutionError,
-    AuthorizenetService,
-)
+import typing
 
 from terminusgps_payments.forms import (
     SubscriptionCreateForm,
     SubscriptionUpdateForm,
 )
-from terminusgps_payments.models import Subscription
+from terminusgps_payments.models import CustomerProfile, Subscription
 from terminusgps_payments.views.generic import (
     AuthorizenetCreateView,
-    AuthorizenetDeleteView,
-    AuthorizenetDetailView,
     AuthorizenetUpdateView,
-    HtmxTemplateView,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class SubscriptionCreateView(AuthorizenetCreateView):
-    content_type = "text/html"
     form_class = SubscriptionCreateForm
-    http_method_names = ["get", "post"]
     model = Subscription
     template_name = "terminusgps_payments/subscription_create.html"
 
-    def form_valid(self, form: SubscriptionCreateForm) -> HttpResponse:
+    def get_form_kwargs(self) -> dict[str, typing.Any]:
         try:
-            self.object = form.save(commit=False)
-            self.object.save(push=True, service=AuthorizenetService())
-            return HttpResponseRedirect(self.object.get_absolute_url())
-        except AuthorizenetControllerExecutionError as error:
-            match error.code:
-                case _:
-                    logger.warning(error)
-                    form.add_error(
-                        None,
-                        ValidationError(
-                            "%(error)s",
-                            code="invalid",
-                            params={"error": error},
-                        ),
-                    )
-            return self.form_invalid(form=form)
+            customer_profile = (
+                CustomerProfile.objects.get(user=self.request.user)
+                if hasattr(self.request, "user")
+                else None
+            )
+        except CustomerProfile.DoesNotExist:
+            customer_profile = None
 
-
-class SubscriptionDetailView(AuthorizenetDetailView):
-    content_type = "text/html"
-    http_method_names = ["get"]
-    model = Subscription
-    template_name = "terminusgps_payments/subscription_detail.html"
+        kwargs = super().get_form_kwargs()
+        kwargs["customer_profile"] = customer_profile
+        return kwargs
 
 
 class SubscriptionUpdateView(AuthorizenetUpdateView):
-    content_type = "text/html"
     form_class = SubscriptionUpdateForm
-    http_method_names = ["get", "post"]
     model = Subscription
     template_name = "terminusgps_payments/subscription_update.html"
 
+    def get_form_kwargs(self) -> dict[str, typing.Any]:
+        try:
+            customer_profile = (
+                CustomerProfile.objects.get(user=self.request.user)
+                if hasattr(self.request, "user")
+                else None
+            )
+        except CustomerProfile.DoesNotExist:
+            customer_profile = None
 
-class SubscriptionDeleteView(AuthorizenetDeleteView):
-    content_type = "text/html"
-    http_method_names = ["get", "post"]
-    model = Subscription
-    template_name = "terminusgps_payments/subscription_delete.html"
-
-
-class SubscriptionDeleteSuccessView(HtmxTemplateView):
-    content_type = "text/html"
-    http_method_names = ["get"]
-    template_name = "terminusgps_payments/subscription_delete_success.html"
+        kwargs = super().get_form_kwargs()
+        kwargs["customer_profile"] = customer_profile
+        return kwargs
