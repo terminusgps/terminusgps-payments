@@ -54,6 +54,7 @@ class Subscription(AuthorizenetModel):
         TERMINATED = "terminated", _("Terminated")
 
     status = models.CharField(blank=True, choices=SubscriptionStatus.choices)
+    expires_on = models.DateField(blank=True, null=True, default=None)
     customer_profile = models.ForeignKey(
         "terminusgps_payments.CustomerProfile",
         on_delete=models.CASCADE,

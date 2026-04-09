@@ -1,0 +1,9 @@
+Hey there!
+
+On {{ date }}, you subscribed to our '{{ plan_name }}' plan for ${{ plan_amount }}/mo.
+
+{{ plan_description }}
+
+Thanks for subscribing!
+
+Terminus GPS

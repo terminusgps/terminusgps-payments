@@ -1,0 +1,9 @@
+Hey there!
+
+On {{ date }}, you canceled your '{{ plan_name }}' plan.
+
+You will no longer be charged ${{ plan_amount|floatformat:'2g' }}/mo.
+
+You will retain access to Terminus GPS services until the next payment date.
+
+Terminus GPS
