@@ -1,0 +1,47 @@
+[
+  {
+    "model": "terminusgps_payments.SubscriptionPlan",
+    "pk": 1,
+    "fields": {
+        "name": "Basic Subscription",
+        "amount": "24.95",
+        "trial_amount": "0.00",
+        "total_occurrences": 9999,
+        "trial_occurrences": 0,
+        "length": 1,
+        "unit": "months",
+        "description": "A subscription plan that grants limited access to Terminus GPS services.",
+        "visibility": "vis"
+    }
+  },
+  {
+    "model": "terminusgps_payments.SubscriptionPlan",
+    "pk": 2,
+    "fields": {
+        "name": "Standard Subscription",
+        "amount": "44.95",
+        "trial_amount": "0.00",
+        "total_occurrences": 9999,
+        "trial_occurrences": 0,
+        "length": 1,
+        "unit": "months",
+        "description": "A subscription plan that grants access to Terminus GPS services.",
+        "visibility": "vis"
+    }
+  },
+  {
+    "model": "terminusgps_payments.SubscriptionPlan",
+    "pk": 3,
+    "fields": {
+        "name": "Premium Subscription",
+        "amount": "64.95",
+        "trial_amount": "0.00",
+        "total_occurrences": 9999,
+        "trial_occurrences": 0,
+        "length": 1,
+        "unit": "months",
+        "description": "A high-tier subscription plan that grants premium access to Terminus GPS services.",
+        "visibility": "vis"
+    }
+  }
+]

@@ -1,7 +1,6 @@
 {% extends "terminusgps_payments/layout.html" %}
-{% block title %}Create Address Profile{% endblock title %}
 {% partialdef main %}
-<form action="{% url 'terminusgps_payments:create address profiles' %}" method="post">
+<form method="post" action="{% url 'terminusgps_payments:delete subscription' subscription.pk %}">
     {% csrf_token %}
     {{ form }}
     <button type="submit">Submit</button>

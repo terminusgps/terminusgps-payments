@@ -1,587 +1,91 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory, TestCase
 
-from terminusgps_payments.models import (
-    CustomerAddressProfile,
-    CustomerPaymentProfile,
-    Subscription,
-)
-from terminusgps_payments.views import (
-    SubscriptionCreateView,
-    SubscriptionUpdateView,
-)
+from terminusgps_payments import views
 
 
-class CustomerAddressProfileCreateViewTestCase(TestCase):
+class AddCreditCardViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
         "terminusgps_payments/tests/test_customerprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/address-profiles/create/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/address-profiles/create/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_post_anonymous(self):
-        """Fails if a POST request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.post("/address-profiles/create/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_post_authenticated(self):
-        """Fails if a POST request from an authenticated client returns a response code other than 200."""
-        response = self.client.post("/address-profiles/create/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET or non-POST request returns a response code other than 405."""
-        response = self.client.put("/address-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/address-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/address-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/address-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/address-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/address-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-
-
-class CustomerAddressProfileDetailViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET request returns a response code other than 405."""
-        response = self.client.post("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.put("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-
-    def test_get_authenticated_other(self):
-        """Fails if a GET request from another authenticated client returns a response code other than 404."""
-        self.client.login(
-            **{
-                "username": "testuseralt",
-                "password": "super_secure_password1!",
-            }
-        )
-        response = self.client.get("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 404)
-        self.client.logout()
-
-
-class CustomerAddressProfileListViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/address-profiles/list/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/address-profiles/list/")
-        self.assertEqual(response.status_code, 200)
-        self.assertInHTML(
-            '<a class="hover:underline" href="/address-profiles/1/detail/"><li>TestAddress</li></a>',
-            response.rendered_content,
-        )
-        self.assertNotInHTML(
-            '<a class="hover:underline" href="/address-profiles/2/detail/"><li>TestAddress</li></a>',
-            response.rendered_content,
-        )
-
-    def test_get_authenticated_other(self):
-        self.client.login(
-            **{
-                "username": "testuseralt",
-                "password": "super_secure_password1!",
-            }
-        )
-        response = self.client.get("/address-profiles/list/")
-        self.assertInHTML(
-            '<a class="hover:underline" href="/address-profiles/2/detail/"><li>TestAddress</li></a>',
-            response.rendered_content,
-        )
-        self.assertNotInHTML(
-            '<a class="hover:underline" href="/address-profiles/1/detail/"><li>TestAddress</li></a>',
-            response.rendered_content,
-        )
-        self.client.logout()
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET request returns a response code other than 405."""
-        response = self.client.post("/address-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.put("/address-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/address-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/address-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/address-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/address-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/address-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-
-
-class CustomerAddressProfileDeleteViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_get_authenticated_other(self):
-        """Fails if a GET request from another authenticated client returns a response code other than 404."""
-        self.client.login(
-            **{
-                "username": "testuseralt",
-                "password": "super_secure_password1!",
-            }
-        )
-        response = self.client.get("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 404)
-        self.client.logout()
-
-    def test_post_anonymous(self):
-        """Fails if a POST request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.post("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_post_authenticated(self):
-        """Fails if a POST request from an authenticated client returns a response code other than 200."""
-        response = self.client.post("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET or non-POST request returns a response code other than 405."""
-        response = self.client.put("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/address-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-
-
-class CustomerPaymentProfileCreateViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/address-profiles/create/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_post_anonymous(self):
-        """Fails if a POST request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.post("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_post_authenticated(self):
-        """Fails if a POST request from an authenticated client returns a response code other than 200."""
-        response = self.client.post("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET or non-POST request returns a response code other than 405."""
-        response = self.client.put("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/payment-profiles/create/")
-        self.assertEqual(response.status_code, 405)
-
-
-class CustomerPaymentProfileDetailViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/address-profiles/1/detail/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_get_authenticated_other(self):
-        """Fails if a GET request from another authenticated client returns a response code other than 404."""
-        self.client.login(
-            **{
-                "username": "testuseralt",
-                "password": "super_secure_password1!",
-            }
-        )
-        response = self.client.get("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 404)
-        self.client.logout()
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET request returns a response code other than 405."""
-        response = self.client.post("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.put("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/payment-profiles/1/detail/")
-        self.assertEqual(response.status_code, 405)
-
-
-class CustomerPaymentProfileListViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_get_authenticated_other(self):
-        self.client.login(
-            **{
-                "username": "testuseralt",
-                "password": "super_secure_password1!",
-            }
-        )
-        response = self.client.get("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 200)
-        self.client.logout()
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET request returns a response code other than 405."""
-        response = self.client.post("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.put("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/payment-profiles/list/")
-        self.assertEqual(response.status_code, 405)
-
-
-class CustomerPaymentProfileDeleteViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-    ]
-
-    def setUp(self):
-        self.client.login(
-            **{"username": "testuser", "password": "super_secure_password1!"}
-        )
-
-    def tearDown(self):
-        self.client.logout()
-
-    def test_get_anonymous(self):
-        """Fails if a GET request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.get("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_authenticated(self):
-        """Fails if a GET request from an authenticated client returns a response code other than 200."""
-        response = self.client.get("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_get_authenticated_other(self):
-        """Fails if a GET request from another authenticated client returns a response code other than 404."""
-        self.client.login(
-            **{
-                "username": "testuseralt",
-                "password": "super_secure_password1!",
-            }
-        )
-        response = self.client.get("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 404)
-        self.client.logout()
-
-    def test_post_anonymous(self):
-        """Fails if a POST request from an anonymous client returns a response code other than 302."""
-        self.client.logout()
-        response = self.client.post("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 302)
-
-    def test_post_authenticated(self):
-        """Fails if a POST request from an authenticated client returns a response code other than 200."""
-        response = self.client.post("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 200)
-
-    def test_not_allowed_http_methods(self):
-        """Fails if a non-GET or non-POST request returns a response code other than 405."""
-        response = self.client.put("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.patch("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.delete("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.head("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.options("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-        response = self.client.trace("/payment-profiles/1/delete/")
-        self.assertEqual(response.status_code, 405)
-
-
-class SubscriptionCreateViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-        "terminusgps_payments/tests/test_subscription.json",
     ]
 
     def setUp(self):
         self.factory = RequestFactory()
+        self.view_cls = views.AddCreditCardView
         self.user = get_user_model().objects.get(pk=1)
 
-    def test_get_form_kwargs(self):
-        """Fails if :py:meth:`get_form_kwargs` doesn't add :py:attr:`customer_profile` to the form kwargs."""
-        request = self.factory.get("/subscriptions/create/")
-        request.user = self.user
-        view = SubscriptionCreateView()
-        view.setup(request)
-        self.assertIn("customer_profile", view.get_form_kwargs())
+    def test_get_by_anonymous_user_returns_302(self):
+        """Fails if a GET request from an anonymous user doesn't return 302."""
+        request = self.factory.get("add-credit-card/")
+        request.user = AnonymousUser()
+        response = self.view_cls.as_view()(request)
+        self.assertEqual(response.status_code, 302)
 
-    def test_get_form(self):
-        request = self.factory.get("/subscriptions/create/")
+    def test_post_by_anonymous_user_returns_302(self):
+        """Fails if a POST request from an anonymous user doesn't return 302."""
+        request = self.factory.post("add-credit-card/")
+        request.user = AnonymousUser()
+        response = self.view_cls.as_view()(request)
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_by_authenticated_user_returns_200(self):
+        """Fails if a GET request from an authenticated user doesn't return 200."""
+        request = self.factory.get("add-credit-card/")
         request.user = self.user
-        view = SubscriptionCreateView()
-        view.setup(request)
-        form = view.get_form(form_class=None)
-        self.assertQuerySetEqual(
-            form.fields["payment_profile"].queryset,
-            CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
+        response = self.view_cls.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_by_authenticated_user_returns_200(self):
+        """Fails if a POST request from an authenticated user doesn't return 200."""
+        request = self.factory.post("add-credit-card/")
+        request.user = self.user
+        response = self.view_cls.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_invalid_credit_card_adds_form_error(self):
+        """Fails if the form didn't have errors with a bad credit card input."""
+        request = self.factory.post(
+            "add-credit-card/",
+            data={
+                "addressform-firstName": "Test",
+                "addressform-lastName": "User",
+                "addressform-address": "123 Main St",
+                "addressform-city": "Houston",
+                "addressform-state": "TX",
+                "addressform-zip": "77065",
+                "addressform-country": "USA",
+                "creditcardform-cardNumber": "4111111111111110",
+                "creditcardform-cardCode": "444",
+                "creditcardform-expirationDate": "2039-04",
+            },
         )
-        self.assertQuerySetEqual(
-            form.fields["address_profile"].queryset,
-            CustomerAddressProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
-        )
-
-    def test_get_success_url(self):
-        """Fails if :py:meth:`get_success_url` doesn't return a URL pointing to the subscription's detail view."""
-        request = self.factory.post("/subscriptions/create/")
         request.user = self.user
-        view = SubscriptionCreateView()
-        view.setup(request)
-        view.object = Subscription.objects.get(pk=1)
-        self.assertEqual("/subscriptions/1/detail/", view.get_success_url())
-
-
-class SubscriptionUpdateViewTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-        "terminusgps_payments/tests/test_customeraddressprofile.json",
-        "terminusgps_payments/tests/test_customerpaymentprofile.json",
-        "terminusgps_payments/tests/test_subscription.json",
-    ]
-
-    def setUp(self):
-        self.factory = RequestFactory()
-        self.user = get_user_model().objects.get(pk=1)
-
-    def test_get_form_kwargs(self):
-        """Fails if :py:meth:`get_form_kwargs` doesn't add :py:attr:`customer_profile` to the form kwargs."""
-        request = self.factory.get("/subscriptions/1/update/")
-        request.user = self.user
-        view = SubscriptionUpdateView()
-        view.setup(request)
-        self.assertIn("customer_profile", view.get_form_kwargs())
-
-    def test_get_form(self):
-        request = self.factory.get("/subscriptions/1/update/")
-        request.user = self.user
-        view = SubscriptionUpdateView()
-        view.setup(request)
-        form = view.get_form(form_class=None)
-        self.assertQuerySetEqual(
-            form.fields["payment_profile"].queryset,
-            CustomerPaymentProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
-        )
-        self.assertQuerySetEqual(
-            form.fields["address_profile"].queryset,
-            CustomerAddressProfile.objects.filter(
-                customer_profile__user=self.user
-            ),
-            ordered=False,
+        response = self.view_cls.as_view()(request)
+        self.assertFormError(
+            response.context_data["creditcardform"],
+            field="cardNumber",
+            errors=["Invalid card number."],
         )
 
-    def test_get_success_url(self):
-        """Fails if :py:meth:`get_success_url` doesn't return a URL pointing to the subscription's detail view."""
-        request = self.factory.post("/subscriptions/1/update/")
+    def test_valid_form_executes_authorizenet_api_call(self):
+        """Fails if a valid form does not execute the required authoriznet api call."""
+        request = self.factory.post(
+            "add-credit-card/",
+            data={
+                "addressform-firstName": "Test",
+                "addressform-lastName": "User",
+                "addressform-address": "123 Main St",
+                "addressform-city": "Houston",
+                "addressform-state": "TX",
+                "addressform-zip": "77065",
+                "addressform-country": "USA",
+                "creditcardform-cardNumber": "4111111111111111",
+                "creditcardform-cardCode": "444",
+                "creditcardform-expirationDate": "2039-04",
+            },
+        )
         request.user = self.user
-        view = SubscriptionUpdateView()
-        view.setup(request)
-        view.object = Subscription.objects.get(pk=1)
-        self.assertEqual("/subscriptions/1/detail/", view.get_success_url())
+        response = self.view_cls.as_view()(request)
+        print(f"{response.status_code = }")

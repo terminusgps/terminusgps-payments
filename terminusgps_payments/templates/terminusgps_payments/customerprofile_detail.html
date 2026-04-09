@@ -1,0 +1,41 @@
+{% extends "terminusgps_payments/layout.html" %}
+{% partialdef main %}
+{% if messages %}
+<ul id="messages">
+{% for message in messages %}
+<li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+    {{ message }}
+</li>
+{% endfor %}
+</ul>
+{% endif %}
+<div id="payment-profile-list">
+    {% for payment in response.profile.paymentProfiles %}
+    <div id="payment-profile-{{ payment.customerPaymentProfileId }}">
+        {{ payment.payment.creditCard.cardNumber }}
+        {{ payment.payment.creditCard.expirationDate }}
+    </div>
+    {% empty %}
+    <p>You don't have any saved payment profiles.</p>
+    {% endfor %}
+</div>
+<div id="shipping-profile-list">
+    {% for shipping in response.profile.shipToList %}
+    <div id="shipping-profile-{{ shipping.customerAddressId }}">
+        {{ shipping.address }}
+    </div>
+    {% empty %}
+    <p>You don't have any saved shipping profiles.</p>
+    {% endfor %}
+</div>
+<div id="subscription-list">
+    {% for subscription in response.subscriptionIds %}
+    <div id="subscription-{{ subscription.subscriptionId }}">{{ subscription.subscriptionId }}</div>
+    {% empty %}
+    <p>You don't have any subscriptions.</p>
+    {% endfor %}
+</div>
+{% endpartialdef main %}
+{% block content %}
+{% partial main %}
+{% endblock content %}

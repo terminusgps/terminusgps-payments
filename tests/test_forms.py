@@ -1,125 +1,88 @@
-from datetime import date
+from string import ascii_lowercase
 
 from django.test import TestCase
 
 from terminusgps_payments.forms import (
-    CustomerAddressProfileCreateForm,
-    CustomerPaymentProfileCreateForm,
+    AddressForm,
+    BankAccountForm,
+    CreditCardForm,
+    luhn_check,
 )
-from terminusgps_payments.models import CustomerProfile
 
 
-class CustomerAddressProfileCreateFormTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-    ]
+class LuhnCheckTestCase(TestCase):
+    def test_valid_card_number_passes(self):
+        """Fails if a valid card number fails the luhn check."""
+        result = luhn_check("4111111111111111")
+        self.assertTrue(result)
+        result = luhn_check("4242424242424242")
+        self.assertTrue(result)
 
-    def setUp(self):
-        self.form_cls = CustomerAddressProfileCreateForm
-        self.address_data = {
-            "first_name": "TestFirstName",
-            "last_name": "TestLastName",
-            "company": "TestCompany",
-            "address": "TestAddress",
-            "city": "TestCity",
-            "state": "TestState",
-            "country": "TestCountry",
-            "zip": "TestZip",
-            "phone_number": "TestPhoneNumber",
-        }
+    def test_invalid_card_number_fails(self):
+        """Fails if an invalid card number passes the luhn check."""
+        result = luhn_check("4111111111111110")
+        self.assertFalse(result)
 
-    def test_clean_missing_address(self):
-        """Fails if the form doesn't have the proper error message applied with missing address data."""
-        data = {"customer_profile": CustomerProfile.objects.get(pk=1)}
-        form = self.form_cls(data=data)
+    def test_empty_card_number_fails(self):
+        """Fails if an empty string passes the luhn check."""
+        result = luhn_check("")
+        self.assertFalse(result)
+
+    def test_non_digit_card_number_fails(self):
+        """Fails if a non-digit card number passes the luhn check."""
+        result = luhn_check(ascii_lowercase[:16])
+        self.assertFalse(result)
+
+    def test_double_card_number_fails(self):
+        """Fails if a double card number passes the luhn check."""
+        result = luhn_check("4111111111111111" * 2)
+        self.assertFalse(result)
+
+    def test_short_card_number_fails(self):
+        """Fails if a short card number passes the luhn check"""
+        result = luhn_check("411111111111")
+        self.assertFalse(result)
+        result = luhn_check("41111111")
+        self.assertFalse(result)
+
+
+class AddressFormTestCase(TestCase):
+    def test_build_contract_with_missing_required_fields_raises_valuerror(
+        self,
+    ):
+        """Fails if :py:meth:`build_contract` doesn't raise :py:exec:`ValueError` when called with missing form fields."""
+        form = AddressForm(data={})
+        with self.assertRaises(ValueError):
+            form.build_contract()
+
+
+class CreditCardFormTestCase(TestCase):
+    def test_build_contract_with_missing_required_fields_raises_valueerror(
+        self,
+    ):
+        """Fails if :py:meth:`build_contract` doesn't raise :py:exec:`ValueError` when called with missing form fields."""
+        form = CreditCardForm(data={})
+        with self.assertRaises(ValueError):
+            form.build_contract()
+
+    def test_clean_adds_error_on_invalid_card_number(self):
+        """Fails if :py:meth:`clean` doesn't add an error when provided with an invalid card number."""
+        form = CreditCardForm(
+            data={
+                "cardNumber": "4111111111111110",
+                "cardCode": "444",
+                "expirationDate": "2049-04",
+            }
+        )
         self.assertFalse(form.is_valid())
-        self.assertFormError(
-            form, None, "Please fill out all required shipping address fields."
-        )
+        self.assertIn("cardNumber", form.errors)
 
 
-class CustomerPaymentProfileCreateFormTestCase(TestCase):
-    fixtures = [
-        "terminusgps_payments/tests/test_user.json",
-        "terminusgps_payments/tests/test_customerprofile.json",
-    ]
-
-    def setUp(self):
-        self.form_cls = CustomerPaymentProfileCreateForm
-        self.card_data = {
-            "card_number": "4111111111111111",
-            "card_expiry": [date(2039, 12, 1), date(2039, 12, 1)],
-            "card_code": "444",
-        }
-        self.address_data = {
-            "first_name": "TestFirstName",
-            "last_name": "TestLastName",
-            "company": "TestCompany",
-            "address": "TestAddress",
-            "city": "TestCity",
-            "state": "TestState",
-            "country": "TestCountry",
-            "zip": "TestZip",
-            "phone_number": "TestPhoneNumber",
-        }
-        self.bank_account_data = {
-            "account_number": "41111111111111111",
-            "routing_number": "411111111",
-            "account_name": "TestAccountName",
-            "account_type": "checking",
-            "bank_name": "TestBankName",
-        }
-
-    def test_clean_missing_address(self):
-        """Fails if the form doesn't have the proper error message applied with missing address data."""
-        data = {"customer_profile": CustomerProfile.objects.get(pk=1)}
-        form = self.form_cls(data=data)
-        self.assertFalse(form.is_valid())
-        self.assertFormError(
-            form, None, "Please fill out all required billing address fields."
-        )
-
-    def test_clean_both_credit_card_and_bank_account(self):
-        """Fails if the form doesn't have the proper error message applied with both credit card and bank account data."""
-        data = (
-            {"customer_profile": CustomerProfile.objects.get(pk=1)}
-            | self.address_data.copy()
-            | self.card_data.copy()
-            | self.bank_account_data.copy()
-        )
-        form = self.form_cls(data=data)
-        self.assertFalse(form.is_valid())
-        self.assertFormError(
-            form,
-            None,
-            "Please fill out all credit card fields or bank account fields, not both.",
-        )
-
-    def test_clean_credit_card(self):
-        """Fails if the form doesn't have the proper error message applied with invalid credit card data."""
-        data = (
-            {"customer_profile": CustomerProfile.objects.get(pk=1)}
-            | self.address_data.copy()
-            | self.card_data.copy()
-        )
-        data["card_number"] = ""
-        form = self.form_cls(data=data)
-        self.assertFalse(form.is_valid())
-        self.assertFormError(
-            form, None, "Please fill out all credit card fields."
-        )
-
-    def test_clean_bank_account(self):
-        """Fails if the form doesn't have the proper error message applied with invalid bank account data."""
-        data = (
-            {"customer_profile": CustomerProfile.objects.get(pk=1)}
-            | self.address_data.copy()
-            | self.bank_account_data.copy()
-        )
-        data["account_number"] = ""
-        form = self.form_cls(data=data)
-        self.assertFalse(form.is_valid())
-        self.assertFormError(
-            form, None, "Please fill out all bank account fields."
-        )
+class BankAccountFormTestCase(TestCase):
+    def test_build_contract_with_missing_required_fields_raises_valueerror(
+        self,
+    ):
+        """Fails if :py:meth:`build_contract` doesn't raise :py:exec:`ValueError` when called with missing form fields."""
+        form = BankAccountForm(data={})
+        with self.assertRaises(ValueError):
+            form.build_contract()

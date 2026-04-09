@@ -1,0 +1,14 @@
+{% extends "terminusgps_payments/layout.html" %}
+{% partialdef main %}
+<div id="subscription">
+    <p id="name">{{ response.subscription.name }}</p>
+    <p id="amount">${{ response.subscription.amount|floatformat:'2g' }} every {{ response.subscription.paymentSchedule.interval.length }} {{ response.subscription.paymentSchedule.interval.unit }}</p>
+    {% if response.subscription.paymentSchedule.trialOccurrences != 0 %}
+    <p id="trialAmount">${{ response.subscription.trialAmount|floatformat:'2g' }}</p>
+    {% else %}
+    {% endif %}
+</div>
+{% endpartialdef main %}
+{% block content %}
+{% partial main %}
+{% endblock content %}
