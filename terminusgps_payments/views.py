@@ -5,9 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
-from django.db.models import QuerySet
 from django.http import Http404, HttpResponse, HttpResponseRedirect
-from django.template.defaultfilters import date
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import (
@@ -23,12 +21,14 @@ from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import AuthorizenetError
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import forms, tasks
+from terminusgps_payments import forms
 from terminusgps_payments.mixins import (
     AuthorizenetServiceMixin,
     CustomerProfileMixin,
 )
 from terminusgps_payments.models import Subscription, SubscriptionPlan
+
+VISIBLE = SubscriptionPlan.SubscriptionPlanVisibility.VISIBLE
 
 
 def get_payment_profile_choices(
@@ -75,9 +75,8 @@ class AddCreditCardView(
     def forms_valid(self) -> HttpResponse:
         forms = self.get_forms()
         billTo = forms["addressform"].build_contract()
-        creditCard = forms["creditcardform"].build_contract()
         payment = apicontractsv1.paymentType()
-        payment.creditCard = creditCard
+        payment.creditCard = forms["creditcardform"].build_contract()
         contract = apicontractsv1.customerPaymentProfileType()
         contract.billTo = billTo
         contract.payment = payment
@@ -117,13 +116,13 @@ class AddBankAccountView(
         contract = apicontractsv1.customerPaymentProfileType()
         contract.billTo = billTo
         contract.payment = payment
-
         try:
-            kwargs = {
-                "customer_profile_id": self.customer_profile.pk,
-                "contract": contract,
-            }
-            self.service.execute(api.create_customer_payment_profile(**kwargs))
+            self.service.execute(
+                api.create_customer_payment_profile(
+                    customer_profile_id=self.customer_profile.pk,
+                    contract=contract,
+                )
+            )
             return HttpResponseRedirect(self.get_success_url())
         except AuthorizenetError as error:
             messages.error(self.request, error)
@@ -149,12 +148,13 @@ class CustomerProfileDetailView(
 
     def get_authorizenet_response(self) -> ObjectifiedElement | None:
         try:
-            kwargs = {
-                "customer_profile_id": self.customer_profile.pk,
-                "include_issuer_info": self.get_include_issuer_info(),
-                "unmask_expiration_date": self.get_unmask_expiration_date(),
-            }
-            return self.service.execute(api.get_customer_profile(**kwargs))
+            return self.service.execute(
+                api.get_customer_profile(
+                    customer_profile_id=self.customer_profile.pk,
+                    include_issuer_info=self.get_include_issuer_info(),
+                    unmask_expiration_date=self.get_unmask_expiration_date(),
+                )
+            )
         except AuthorizenetError as error:
             messages.error(self.request, error)
             return
@@ -180,17 +180,10 @@ class SubscriptionDeleteView(
 
     def form_valid(self, form) -> HttpResponse:
         try:
-            kwargs = {"subscription_id": self.object.pk}
-            self.service.execute(api.cancel_subscription(**kwargs))
-            tasks.send_subscription_canceled_email.enqueue(
-                recipient_list=[self.customer_profile.user.email],
-                context={
-                    "plan_name": form.cleaned_data["plan"].name,
-                    "plan_amount": str(form.cleaned_data["plan"].amount),
-                    "plan_description": form.cleaned_data["plan"].description,
-                    "date": date(timezone.now(), "l, F jS, Y"),
-                },
+            self.service.execute(
+                api.cancel_subscription(subscription_id=self.object.pk)
             )
+            self.object.delete()
             return HttpResponseRedirect(self.get_success_url())
         except AuthorizenetError as error:
             form.add_error(
@@ -314,6 +307,7 @@ class SubscriptionCreateView(
     content_type = "text/html"
     form_class = forms.CreateSubscriptionForm
     http_method_names = ["get", "post"]
+    plan_queryset = SubscriptionPlan.objects.filter(visibility=VISIBLE)
     template_name = "terminusgps_payments/subscription_create.html"
 
     def get_authorizenet_response(self) -> ObjectifiedElement | None:
@@ -327,14 +321,23 @@ class SubscriptionCreateView(
             messages.error(self.request, error)
             return
 
-    def get_plans(self) -> QuerySet:
-        qs = SubscriptionPlan.objects.all()
-        visible = SubscriptionPlan.SubscriptionPlanVisibility.VISIBLE
-        return qs.filter(visibility=visible)
+    def get_form(self, form_class=None) -> forms.CreateSubscriptionForm:
+        form = super().get_form(form_class=form_class)
+        form.fields["plan"].queryset = self.plan_queryset
+        form.fields["plan"].empty_label = None
+        response = self.get_authorizenet_response()
+        if response is not None:
+            paymentProfiles = response.profile.paymentProfiles
+            shipToList = response.profile.shipToList
+            if len(paymentProfiles) > 0:
+                choices = get_payment_profile_choices(paymentProfiles)
+                form.fields["payment_profile"].choices = choices
+            if len(shipToList) > 0:
+                choices = get_shipping_profile_choices(shipToList)
+                form.fields["shipping_profile"].choices = choices
+        return form
 
-    def get_contract(
-        self, form: forms.CreateSubscriptionForm
-    ) -> apicontractsv1.ARBSubscriptionType:
+    def form_valid(self, form: forms.CreateSubscriptionForm) -> HttpResponse:
         plan = form.cleaned_data["plan"]
         schedule = apicontractsv1.paymentScheduleType()
         schedule.totalOccurrences = plan.total_occurrences
@@ -356,38 +359,10 @@ class SubscriptionCreateView(
         contract.trialAmount = plan.trial_amount
         contract.paymentSchedule = schedule
         contract.profile = profile
-        return contract
 
-    def get_form(self, form_class=None) -> forms.CreateSubscriptionForm:
-        form = super().get_form(form_class=form_class)
-        form.fields["plan"].queryset = self.get_plans()
-        form.fields["plan"].empty_label = None
-        response = self.get_authorizenet_response()
-        if response is not None:
-            paymentProfiles = response.profile.paymentProfiles
-            shipToList = response.profile.shipToList
-            if len(paymentProfiles) > 0:
-                choices = get_payment_profile_choices(paymentProfiles)
-                form.fields["payment_profile"].choices = choices
-            if len(shipToList) > 0:
-                choices = get_shipping_profile_choices(shipToList)
-                form.fields["shipping_profile"].choices = choices
-        return form
-
-    def form_valid(self, form: forms.CreateSubscriptionForm) -> HttpResponse:
         try:
-            contract = self.get_contract(form)
             response = self.service.execute(
                 api.create_subscription(contract=contract)
-            )
-            tasks.send_subscription_created_email.enqueue(
-                recipient_list=[self.customer_profile.user.email],
-                context={
-                    "plan_name": form.cleaned_data["plan"].name,
-                    "plan_amount": str(form.cleaned_data["plan"].amount),
-                    "plan_description": form.cleaned_data["plan"].description,
-                    "date": date(timezone.now(), "l, F jS, Y"),
-                },
             )
             self.object = form.save(commit=False)
             self.object.pk = response.subscriptionId
@@ -408,15 +383,16 @@ class SubscriptionPlanDetailView(HtmxTemplateResponseMixin, DetailView):
     content_type = "text/html"
     http_method_names = ["get"]
     model = SubscriptionPlan
+    queryset = SubscriptionPlan.objects.filter(visibility=VISIBLE)
     template_name = "terminusgps_payments/subscriptionplan_detail.html"
 
     def get_object(self, queryset=None) -> SubscriptionPlan:
         if queryset is None:
             queryset = self.get_queryset()
-        pk = self.request.GET.get("plan")
-        if pk is None:
-            raise Http404()
         try:
-            return queryset.get(pk=pk)
+            plan_pk = self.request.GET.get("plan")
+            if plan_pk is None:
+                raise Http404()
+            return queryset.get(pk=plan_pk)
         except SubscriptionPlan.DoesNotExist:
             raise Http404()

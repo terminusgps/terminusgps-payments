@@ -1,22 +1,40 @@
 import typing
 
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpRequest
+from django.utils.module_loading import import_string
 from terminusgps.authorizenet.service import AuthorizenetService
 
 from terminusgps_payments.models import CustomerProfile
 
 
 class AuthorizenetServiceMixin:
-    """Adds Authorizenet service to the view's :py:attr:`service` attribute."""
+    """
+    Adds an Authorizenet service to the view's :py:attr:`service` attribute.
 
-    service_class: type[AuthorizenetService] = AuthorizenetService
-    service_kwargs: dict[str, typing.Any] = {}
+    Passes `service_kwargs` to the service initializer if provided.
+
+    """
+
+    service_kwargs: dict[str, typing.Any] | None = None
 
     def get_service_class(self) -> type[AuthorizenetService]:
-        return self.service_class
+        if not hasattr(settings, "AUTHORIZENET_SERVICE"):
+            raise ImproperlyConfigured(
+                "'AUTHORIZENET_SERVICE' setting is required."
+            )
+        try:
+            return import_string(settings.AUTHORIZENET_SERVICE)
+        except ImportError as error:
+            raise ImproperlyConfigured(error)
 
     def get_service_kwargs(self) -> dict[str, typing.Any]:
-        return self.service_kwargs.copy()
+        return (
+            self.service_kwargs.copy()
+            if self.service_kwargs is not None
+            else {}
+        )
 
     def setup(self, request: HttpRequest, *args, **kwargs) -> None:
         super().setup(request, *args, **kwargs)

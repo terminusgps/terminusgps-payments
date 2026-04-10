@@ -1,3 +1,6 @@
+import typing
+from datetime import date
+
 from authorizenet import apicontractsv1
 from django import forms
 from django.core.exceptions import ValidationError
@@ -62,7 +65,22 @@ class CreditCardForm(AuthorizenetContractForm):
 
     cardNumber = forms.CharField(max_length=16, min_length=13)
     cardCode = forms.CharField(max_length=4, min_length=3)
-    expirationDate = forms.CharField(max_length=7)
+    expirationDate = forms.DateField(input_formats=["%Y-%m"])
+
+    @typing.override
+    def build_contract(self):
+        if self.contract_cls is None:
+            raise ValueError("'contract_cls' wasn't set.")
+        if not self.is_valid():
+            raise ValueError("Form was invalid.")
+        cardNumber = self.cleaned_data["cardNumber"]
+        cardCode = self.cleaned_data["cardCode"]
+        expirationDate = self.cleaned_data["expirationDate"]
+        contract = self.contract_cls()
+        contract.cardNumber = cardNumber
+        contract.cardCode = cardCode
+        contract.expirationDate = expirationDate.strftime("%Y-%m")
+        return contract
 
     def clean(self):
         cleaned_data = super().clean()
@@ -73,6 +91,15 @@ class CreditCardForm(AuthorizenetContractForm):
                         "cardNumber",
                         ValidationError(
                             _("Invalid card number."), code="invalid"
+                        ),
+                    )
+            if expirationDate := cleaned_data.get("expirationDate"):
+                if date.today() > expirationDate:
+                    self.add_error(
+                        "expirationDate",
+                        ValidationError(
+                            _("Expiration date cannot be in the past."),
+                            code="invalid",
                         ),
                     )
 
@@ -91,10 +118,12 @@ class BankAccountForm(AuthorizenetContractForm):
     routingNumber = forms.CharField(max_length=9)
     nameOnAccount = forms.CharField(max_length=22)
     bankName = forms.CharField(max_length=50)
-    echeckType = forms.ChoiceField(
-        choices=[("PPD", _("PPD")), ("WEB", _("WEB")), ("CCD", _("CCD"))],
-        disabled=True,
-    )
+
+    @typing.override
+    def build_contract(self):
+        contract = super().build_contract()
+        contract.echeckType = "PPD"
+        return contract
 
 
 class CreateSubscriptionForm(forms.ModelForm):

@@ -8,6 +8,13 @@
     {% else %}
     {% endif %}
 </div>
+{% if response.subscription.arbTransactions %}
+<div id="transactions">
+    {% for t in response.subscription.arbTransactions %}
+    <div id="{{ t.transId }}">{{ t.responseDescription }}</div>
+    {% endfor %}
+</div>
+{% endif %}
 {% endpartialdef main %}
 {% block content %}
 {% partial main %}

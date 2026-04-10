@@ -19,6 +19,7 @@ from authorizenet.constants import constants
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+AUTHORIZENET_SERVICE = "terminusgps.authorizenet.service.AuthorizenetService"
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 DEBUG = True
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

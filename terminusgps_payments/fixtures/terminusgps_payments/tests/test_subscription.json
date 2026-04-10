@@ -43,5 +43,14 @@
         "description": "A high-tier subscription plan that grants premium access to Terminus GPS services.",
         "visibility": "vis"
     }
+  },
+  {
+    "model": "terminusgps_payments.Subscription",
+    "pk": 1,
+    "fields": {
+        "customer_profile": 1,
+        "plan": 1,
+        "status": "active"
+    }
   }
 ]

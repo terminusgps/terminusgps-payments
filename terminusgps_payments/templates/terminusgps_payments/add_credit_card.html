@@ -1,5 +1,14 @@
 {% extends "terminusgps_payments/layout.html" %}
 {% partialdef main %}
+{% if messages %}
+<ul id="messages">
+{% for message in messages %}
+<li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+    {{ message }}
+</li>
+{% endfor %}
+</ul>
+{% endif %}
 <form method="post" action="{% url 'terminusgps_payments:add credit card' %}">
     {% csrf_token %}
     {% for form in forms %}

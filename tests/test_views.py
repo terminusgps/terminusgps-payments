@@ -1,10 +1,9 @@
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
-from django.test import RequestFactory, TestCase
+from django.test import Client, TestCase, override_settings
 
-from terminusgps_payments import views
+from terminusgps_payments.models import Subscription
 
 
+@override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
 class AddCreditCardViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
@@ -12,80 +11,204 @@ class AddCreditCardViewTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.factory = RequestFactory()
-        self.view_cls = views.AddCreditCardView
-        self.user = get_user_model().objects.get(pk=1)
+        self.path = "/customer-profile/add-credit-card/"
+        self.client = Client()
+        self.client.login(
+            username="testuser", password="super_secure_password1!"
+        )
 
     def test_get_by_anonymous_user_returns_302(self):
-        """Fails if a GET request from an anonymous user doesn't return 302."""
-        request = self.factory.get("add-credit-card/")
-        request.user = AnonymousUser()
-        response = self.view_cls.as_view()(request)
+        """Fails if a GET request from an anonymous user returns anything other than 302."""
+        self.client.logout()
+        response = self.client.get(self.path)
         self.assertEqual(response.status_code, 302)
+        self.assertIn(f"?next={self.path}", response.url)
 
-    def test_post_by_anonymous_user_returns_302(self):
-        """Fails if a POST request from an anonymous user doesn't return 302."""
-        request = self.factory.post("add-credit-card/")
-        request.user = AnonymousUser()
-        response = self.view_cls.as_view()(request)
-        self.assertEqual(response.status_code, 302)
-
-    def test_get_by_authenticated_user_returns_200(self):
-        """Fails if a GET request from an authenticated user doesn't return 200."""
-        request = self.factory.get("add-credit-card/")
-        request.user = self.user
-        response = self.view_cls.as_view()(request)
-        self.assertEqual(response.status_code, 200)
-
-    def test_post_by_authenticated_user_returns_200(self):
-        """Fails if a POST request from an authenticated user doesn't return 200."""
-        request = self.factory.post("add-credit-card/")
-        request.user = self.user
-        response = self.view_cls.as_view()(request)
-        self.assertEqual(response.status_code, 200)
-
-    def test_invalid_credit_card_adds_form_error(self):
-        """Fails if the form didn't have errors with a bad credit card input."""
-        request = self.factory.post(
-            "add-credit-card/",
+    def test_valid_forms_return_302(self):
+        """Fails if a POST request with valid form data returns anything other than 302."""
+        response = self.client.post(
+            self.path,
             data={
-                "addressform-firstName": "Test",
-                "addressform-lastName": "User",
-                "addressform-address": "123 Main St",
-                "addressform-city": "Houston",
-                "addressform-state": "TX",
-                "addressform-zip": "77065",
-                "addressform-country": "USA",
-                "creditcardform-cardNumber": "4111111111111110",
-                "creditcardform-cardCode": "444",
-                "creditcardform-expirationDate": "2039-04",
-            },
-        )
-        request.user = self.user
-        response = self.view_cls.as_view()(request)
-        self.assertFormError(
-            response.context_data["creditcardform"],
-            field="cardNumber",
-            errors=["Invalid card number."],
-        )
-
-    def test_valid_form_executes_authorizenet_api_call(self):
-        """Fails if a valid form does not execute the required authoriznet api call."""
-        request = self.factory.post(
-            "add-credit-card/",
-            data={
-                "addressform-firstName": "Test",
-                "addressform-lastName": "User",
-                "addressform-address": "123 Main St",
-                "addressform-city": "Houston",
-                "addressform-state": "TX",
-                "addressform-zip": "77065",
-                "addressform-country": "USA",
+                "addressform-firstName": "TestFirst",
+                "addressform-lastName": "TestLast",
+                "addressform-company": "TestCompany",
+                "addressform-address": "TestAddress",
+                "addressform-city": "TestCity",
+                "addressform-state": "TestState",
+                "addressform-zip": "TestZip",
+                "addressform-country": "TestCountry",
+                "addressform-phoneNumber": "TestPhone",
                 "creditcardform-cardNumber": "4111111111111111",
                 "creditcardform-cardCode": "444",
                 "creditcardform-expirationDate": "2039-04",
             },
         )
-        request.user = self.user
-        response = self.view_cls.as_view()(request)
-        print(f"{response.status_code = }")
+        self.assertEqual(response.status_code, 302)
+
+    def test_invalid_credit_card_returns_error(self):
+        """Fails if a POST request from an authenticated user doesn't return an error with an invalid credit card number."""
+        response = self.client.post(
+            self.path,
+            data={
+                "addressform-firstName": "TestFirst",
+                "addressform-lastName": "TestLast",
+                "addressform-company": "TestCompany",
+                "addressform-address": "TestAddress",
+                "addressform-city": "TestCity",
+                "addressform-state": "TestState",
+                "addressform-zip": "TestZip",
+                "addressform-country": "TestCountry",
+                "addressform-phoneNumber": "TestPhone",
+                "creditcardform-cardNumber": "4111111111111110",
+                "creditcardform-cardCode": "444",
+                "creditcardform-expirationDate": "2039-04",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context_data["creditcardform"],
+            "cardNumber",
+            "Invalid card number.",
+        )
+
+    def test_invalid_expiration_date_returns_error(self):
+        """Fails if a POST request from an authenticated user doesn't return an error with an invalid expiration date."""
+        response = self.client.post(
+            self.path,
+            data={
+                "addressform-firstName": "TestFirst",
+                "addressform-lastName": "TestLast",
+                "addressform-company": "TestCompany",
+                "addressform-address": "TestAddress",
+                "addressform-city": "TestCity",
+                "addressform-state": "TestState",
+                "addressform-zip": "TestZip",
+                "addressform-country": "TestCountry",
+                "addressform-phoneNumber": "TestPhone",
+                "creditcardform-cardNumber": "4111111111111111",
+                "creditcardform-cardCode": "444",
+                "creditcardform-expirationDate": "2019-04",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context_data["creditcardform"],
+            "expirationDate",
+            "Expiration date cannot be in the past.",
+        )
+
+
+@override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
+class AddBankAccountViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+    ]
+
+    def setUp(self):
+        self.path = "/customer-profile/add-bank-account/"
+        self.client = Client()
+        self.client.login(
+            username="testuser", password="super_secure_password1!"
+        )
+
+    def test_requests_from_anonymous_user_returns_302(self):
+        """Fails if a request from an anonymous user returns anything other than 302."""
+        self.client.logout()
+        response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"?next={self.path}", response.url)
+        response = self.client.post(self.path)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"?next={self.path}", response.url)
+
+    def test_valid_forms_return_302(self):
+        """Fails if a POST request with valid form data returns anything other than 302."""
+        response = self.client.post(
+            self.path,
+            data={
+                "addressform-firstName": "TestFirst",
+                "addressform-lastName": "TestLast",
+                "addressform-company": "TestCompany",
+                "addressform-address": "TestAddress",
+                "addressform-city": "TestCity",
+                "addressform-state": "TestState",
+                "addressform-zip": "TestZip",
+                "addressform-country": "TestCountry",
+                "addressform-phoneNumber": "TestPhone",
+                "bankaccountform-accountNumber": "41111111111111111",
+                "bankaccountform-routingNumber": "41111111",
+                "bankaccountform-nameOnAccount": "TestAccountName",
+                "bankaccountform-accountType": "checking",
+                "bankaccountform-bankName": "TestBank",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+
+@override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
+class CustomerProfileDetailViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+    ]
+
+    def setUp(self):
+        self.path = "/customer-profile/details/"
+        self.client = Client()
+        self.client.login(
+            username="testuser", password="super_secure_password1!"
+        )
+
+    def test_requests_from_anonymous_user_returns_302(self):
+        """Fails if a request from an anonymous user returns anything other than 302."""
+        self.client.logout()
+        response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"?next={self.path}", response.url)
+
+
+@override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
+class SubscriptionDeleteViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_subscription.json",
+    ]
+
+    def setUp(self):
+        self.path = "/subscriptions/1/delete/"
+        self.client = Client()
+        self.client.login(
+            username="testuser", password="super_secure_password1!"
+        )
+
+    def test_requests_from_anonymous_user_returns_302(self):
+        """Fails if a request from an anonymous user returns anything other than 302."""
+        self.client.logout()
+        response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"?next={self.path}", response.url)
+
+    def test_valid_form(self):
+        """Fails if the subscription wasn't successfully deleted."""
+        response = self.client.post(self.path)
+        self.assertEqual(response.status_code, 302)
+        with self.assertRaises(Subscription.DoesNotExist):
+            Subscription.objects.get(pk=1)
+
+
+@override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
+class SubscriptionUpdateViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_subscription.json",
+    ]
+
+    def setUp(self):
+        self.path = "/subscriptions/1/update/"
+        self.client = Client()
+        self.client.login(
+            username="testuser", password="super_secure_password1!"
+        )
