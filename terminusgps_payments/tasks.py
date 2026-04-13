@@ -2,18 +2,12 @@ import logging
 from collections.abc import Sequence
 
 from django.core.mail import EmailMultiAlternatives
-from django.db import transaction
 from django.tasks import task
 from django.template.loader import render_to_string
-from django.utils.dateparse import parse_date
-from terminusgps.authorizenet import api
-from terminusgps.authorizenet.service import (
-    AuthorizenetError,
-    AuthorizenetService,
-)
 
 from terminusgps_payments.models import Subscription
 
+ACTIVE = Subscription.SubscriptionStatus.ACTIVE
 logger = logging.getLogger(__name__)
 
 
@@ -59,30 +53,3 @@ def send_subscription_canceled_email(
         context=context or {},
         html_template_name="terminusgps_payments/emails/subscription_canceled.html",
     )
-
-
-@task
-@transaction.atomic
-def refresh_subscription_status(pk: int) -> None:
-    try:
-        subscription = Subscription.objects.get(pk=pk)
-    except Subscription.DoesNotExist:
-        msg = f"Failed to retrieve subscription #{pk} from db"
-        logger.critical(msg)
-        return
-    try:
-        response = AuthorizenetService().execute(
-            api.get_subscription(subscription_id=pk)
-        )
-    except AuthorizenetError as error:
-        logger.warning(error)
-        return
-
-    updated_fields = ["status"]
-    if response.subscription.status == Subscription.SubscriptionStatus.EXPIRED:
-        start_date_str = str(response.subscription.paymentSchedule.startDate)
-        start_date = parse_date(start_date_str)
-        updated_fields.append("expires_on")
-    subscription.status = response.subscription.status
-    subscription.save(update_fields=updated_fields)
-    return

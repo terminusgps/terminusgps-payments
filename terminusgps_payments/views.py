@@ -33,8 +33,9 @@ from terminusgps_payments.mixins import (
 )
 from terminusgps_payments.models import Subscription, SubscriptionPlan
 
-logger = logging.getLogger(__name__)
 VISIBLE = SubscriptionPlan.SubscriptionPlanVisibility.VISIBLE
+CANCELED = Subscription.SubscriptionStatus.CANCELED
+logger = logging.getLogger(__name__)
 
 
 def get_payment_profile_choices(
@@ -189,13 +190,18 @@ class SubscriptionCancelView(
             response = self.service.execute(
                 api.get_subscription(subscription_id=self.object.pk)
             )
+            date_str = str(response.subscription.paymentSchedule.startDate)
+            start_date = parse_date(date_str)
+            if start_date is not None:
+                return datetime.date.today().replace(
+                    day=start_date.day
+                ) + relativedelta(months=1)
         except AuthorizenetError as error:
             logger.error(error)
             return
-        date_str = str(response.subscription.paymentSchedule.startDate)
-        return datetime.date.today().replace(
-            day=parse_date(date_str).day
-        ) + relativedelta(months=1)
+        except ValueError as error:
+            logger.critical(error)
+            return
 
     def get_queryset(self) -> QuerySet:
         qs = super().get_queryset()
@@ -208,7 +214,7 @@ class SubscriptionCancelView(
             self.service.execute(
                 api.cancel_subscription(subscription_id=self.object.pk)
             )
-            self.object.status = "canceled"
+            self.object.status = CANCELED
             self.object.expires_on = self.get_expires_on()
             self.object.save(update_fields=["status", "expires_on"])
             return HttpResponseRedirect(self.get_success_url())
@@ -255,7 +261,7 @@ class SubscriptionUpdateView(
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs.pop("instance")
+        kwargs.pop("instance", None)
         return kwargs
 
     def get_form(self, form_class=None) -> forms.UpdateSubscriptionForm:
@@ -399,7 +405,6 @@ class SubscriptionCreateView(
         contract.trialAmount = plan.trial_amount
         contract.paymentSchedule = schedule
         contract.profile = profile
-
         try:
             response = self.service.execute(
                 api.create_subscription(contract=contract)

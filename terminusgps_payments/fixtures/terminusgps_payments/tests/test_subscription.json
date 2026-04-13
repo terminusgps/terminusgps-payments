@@ -52,5 +52,14 @@
         "plan": 1,
         "status": "active"
     }
+  },
+  {
+    "model": "terminusgps_payments.Subscription",
+    "pk": 2,
+    "fields": {
+        "customer_profile": 2,
+        "plan": 1,
+        "status": "active"
+    }
   }
 ]

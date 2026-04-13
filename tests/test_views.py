@@ -1,7 +1,56 @@
+from unittest.mock import MagicMock
+
 from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory, TestCase, override_settings
 
+from terminusgps_payments import views
 from terminusgps_payments.models import Subscription
+
+
+class GetPaymentProfileChoicesTestCase(TestCase):
+    def test_choice_generation(self):
+        """Fails if the function does not return choices with a valid element."""
+        cc_payment = MagicMock(spec=["creditCard"])
+        cc_payment.creditCard.cardNumber = "XXXX1111"
+        cc_payment.creditCard.cardType = "TestCardType"
+        profile_1 = MagicMock()
+        profile_1.customerPaymentProfileId = 1
+        profile_1.payment = cc_payment
+        ba_payment = MagicMock(spec=["bankAccount"])
+        ba_payment.bankAccount.bankName = "TestBankName"
+        ba_payment.bankAccount.accountNumber = "XXXX1111"
+        profile_2 = MagicMock()
+        profile_2.customerPaymentProfileId = 2
+        profile_2.payment = ba_payment
+        choices = views.get_payment_profile_choices([profile_1, profile_2])
+        self.assertIn((1, "TestCardType XXXX1111"), choices)
+        self.assertIn((2, "TestBankName XXXX1111"), choices)
+
+
+class GetShippingProfileChoicesTestCase(TestCase):
+    def test_choice_generation(self):
+        """Fails if the function does not return choices with a valid element."""
+        profile_1 = MagicMock(spec=["customerAddressExType"])
+        profile_1.customerAddressId = 1
+        profile_1.firstName = "TestFirst"
+        profile_1.lastName = "TestLast"
+        profile_1.address = "123 Main St"
+        profile_1.city = "Houston"
+        profile_1.state = "TX"
+        profile_1.zip = "77065"
+        profile_1.country = "USA"
+        profile_2 = MagicMock(spec=["customerAddressExType"])
+        profile_2.customerAddressId = 2
+        profile_2.firstName = "TestFirst"
+        profile_2.lastName = "TestLast"
+        profile_2.address = "456 Main St"
+        profile_2.city = "Cypress"
+        profile_2.state = "TX"
+        profile_2.zip = "77433"
+        profile_2.country = "USA"
+        choices = views.get_shipping_profile_choices([profile_1, profile_2])
+        self.assertIn((1, "123 Main St"), choices)
+        self.assertIn((2, "456 Main St"), choices)
 
 
 @override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
@@ -171,8 +220,53 @@ class CustomerProfileDetailViewTestCase(TestCase):
     def test_get_include_issuer_info(self):
         """Fails if :py:meth:`get_include_issuer_info` doesn't return expected values."""
         factory = RequestFactory()
-        request = factory.get(self.path, query={"include_issuer_info": "on"})
+        request = factory.get(
+            self.path, query_params={"include_issuer_info": "on"}
+        )
         request.user = get_user_model().objects.get(pk=1)
+        view = views.CustomerProfileDetailView()
+        view.setup(request)
+        self.assertTrue(view.get_include_issuer_info())
+
+        factory = RequestFactory()
+        request = factory.get(
+            self.path, query_params={"include_issuer_info": "off"}
+        )
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.CustomerProfileDetailView()
+        view.setup(request)
+        self.assertFalse(view.get_include_issuer_info())
+
+    def test_get_unmask_expiration_date(self):
+        """Fails if :py:meth:`unmask_expiration_date` doesn't return expected values."""
+        factory = RequestFactory()
+        request = factory.get(
+            self.path, query_params={"unmask_expiration_date": "on"}
+        )
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.CustomerProfileDetailView()
+        view.setup(request)
+        self.assertTrue(view.get_unmask_expiration_date())
+
+        factory = RequestFactory()
+        request = factory.get(
+            self.path, query_params={"unmask_expiration_date": "off"}
+        )
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.CustomerProfileDetailView()
+        view.setup(request)
+        self.assertFalse(view.get_unmask_expiration_date())
+
+    def test_get_authorizenet_response(self):
+        """Fails if the Authorizenet API call wasn't executed or was executed with incorrect arguments."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.CustomerProfileDetailView()
+        view.setup(request)
+        view.get_authorizenet_response()
+        api_call = view.service.method_calls[0]
+        self.assertTrue(api_call.assert_called_once)
 
 
 @override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
@@ -202,6 +296,7 @@ class SubscriptionCancelViewTestCase(TestCase):
         response = self.client.post(self.path)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Subscription.objects.get(pk=1).status, "canceled")
+        self.assertIsNone(Subscription.objects.get(pk=1).expires_on)
 
 
 @override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
@@ -218,3 +313,20 @@ class SubscriptionUpdateViewTestCase(TestCase):
         self.client.login(
             username="testuser", password="super_secure_password1!"
         )
+
+    def test_request_from_anonymous_user_returns_302(self):
+        """Fails if a request from an anonymous user returns anything other than 302."""
+        self.client.logout()
+        response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"?next={self.path}", response.url)
+
+    def test_get_form_kwargs(self):
+        """Fails if 'instance' was in the form kwargs."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionUpdateView(pk=1)
+        view.setup(request)
+        kwargs = view.get_form_kwargs()
+        self.assertNotIn("instance", kwargs)
