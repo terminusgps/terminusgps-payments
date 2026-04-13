@@ -45,6 +45,21 @@
     }
   },
   {
+    "model": "terminusgps_payments.SubscriptionPlan",
+    "pk": 4,
+    "fields": {
+        "name": "Hidden Subscription",
+        "amount": "99.95",
+        "trial_amount": "0.00",
+        "total_occurrences": 9999,
+        "trial_occurrences": 0,
+        "length": 1,
+        "unit": "months",
+        "description": "You shouldn't be able to create a subscription with this plan.",
+        "visibility": "hid"
+    }
+  },
+  {
     "model": "terminusgps_payments.Subscription",
     "pk": 1,
     "fields": {

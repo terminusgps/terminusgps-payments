@@ -10,6 +10,7 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.template.defaultfilters import date
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -26,7 +27,7 @@ from terminusgps.authorizenet import api
 from terminusgps.authorizenet.service import AuthorizenetError
 from terminusgps.mixins import HtmxTemplateResponseMixin
 
-from terminusgps_payments import forms
+from terminusgps_payments import forms, tasks
 from terminusgps_payments.mixins import (
     AuthorizenetServiceMixin,
     CustomerProfileMixin,
@@ -217,6 +218,15 @@ class SubscriptionCancelView(
             self.object.status = CANCELED
             self.object.expires_on = self.get_expires_on()
             self.object.save(update_fields=["status", "expires_on"])
+            tasks.send_subscription_canceled_email.enqueue(
+                recipient_list=[self.object.customer_profile.user.email],
+                context={
+                    "today": date(datetime.date.today(), "l, F jS Y"),
+                    "expires_on": date(self.object.expires_on, "l, F jS Y"),
+                    "plan_name": self.object.plan.name,
+                    "plan_amount": float(self.object.plan.amount),
+                },
+            )
             return HttpResponseRedirect(self.get_success_url())
         except AuthorizenetError as error:
             form.add_error(
@@ -413,6 +423,15 @@ class SubscriptionCreateView(
             self.object.pk = response.subscriptionId
             self.object.customer_profile = self.customer_profile
             self.object.save()
+            tasks.send_subscription_created_email.enqueue(
+                recipient_list=[self.object.customer_profile.user.email],
+                context={
+                    "today": date(datetime.date.today(), "l, F jS Y"),
+                    "plan_name": self.object.plan.name,
+                    "plan_amount": float(self.object.plan.amount),
+                    "plan_description": self.object.plan.description,
+                },
+            )
             return HttpResponseRedirect(self.object.get_absolute_url())
         except AuthorizenetError as error:
             form.add_error(

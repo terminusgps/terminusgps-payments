@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory, TestCase, override_settings
 
 from terminusgps_payments import views
-from terminusgps_payments.models import Subscription
+from terminusgps_payments.models import Subscription, SubscriptionPlan
 
 
 class GetPaymentProfileChoicesTestCase(TestCase):
@@ -291,12 +291,36 @@ class SubscriptionCancelViewTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(f"?next={self.path}", response.url)
 
+    def test_get_request_from_other_user_returns_404(self):
+        """Fails if a request from another user returns anything other than 404."""
+        self.client.logout()
+        self.client.login(
+            **{
+                "username": "testuseralt",
+                "password": "super_secure_password1!",
+            }
+        )
+        response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 404)
+
     def test_valid_form(self):
         """Fails if the subscription wasn't successfully canceled."""
         response = self.client.post(self.path)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Subscription.objects.get(pk=1).status, "canceled")
         self.assertIsNone(Subscription.objects.get(pk=1).expires_on)
+
+    def test_get_queryset(self):
+        """Fails if the queryset contains subscriptions associated with a different user."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionCancelView()
+        view.setup(request, pk=1)
+        qs = view.get_queryset()
+        self.assertQuerySetEqual(
+            qs, Subscription.objects.filter(customer_profile__pk=1)
+        )
 
 
 @override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
@@ -321,6 +345,18 @@ class SubscriptionUpdateViewTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(f"?next={self.path}", response.url)
 
+    def test_get_request_from_other_user_returns_404(self):
+        """Fails if a request from another user returns anything other than 404."""
+        self.client.logout()
+        self.client.login(
+            **{
+                "username": "testuseralt",
+                "password": "super_secure_password1!",
+            }
+        )
+        response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 404)
+
     def test_get_form_kwargs(self):
         """Fails if 'instance' was in the form kwargs."""
         factory = RequestFactory()
@@ -330,3 +366,139 @@ class SubscriptionUpdateViewTestCase(TestCase):
         view.setup(request)
         kwargs = view.get_form_kwargs()
         self.assertNotIn("instance", kwargs)
+
+    def test_get_queryset(self):
+        """Fails if the queryset contains subscriptions associated with a different user."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionUpdateView(pk=1)
+        view.setup(request)
+        qs = view.get_queryset()
+        self.assertQuerySetEqual(
+            qs, Subscription.objects.filter(customer_profile__pk=1)
+        )
+
+
+@override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
+class SubscriptionDetailViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_subscription.json",
+    ]
+
+    def setUp(self):
+        self.path = "/subscriptions/1/details/"
+        self.client = Client()
+        self.client.login(
+            username="testuser", password="super_secure_password1!"
+        )
+
+    def test_get_include_transactions(self):
+        """Fails if :py:meth:`include_transactions` doesn't return expected values."""
+        factory = RequestFactory()
+        request = factory.get(
+            self.path, query_params={"include_transactions": "on"}
+        )
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionDetailView()
+        view.setup(request, pk=1)
+        self.assertTrue(view.get_include_transactions())
+
+        request = factory.get(
+            self.path, query_params={"include_transactions": "off"}
+        )
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionDetailView()
+        view.setup(request, pk=1)
+        self.assertFalse(view.get_include_transactions())
+
+    def test_get_authorizenet_response(self):
+        """Fails if the Authorizenet API call wasn't executed or was executed with incorrect arguments."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionDetailView()
+        view.setup(request, pk=1)
+        view.object = view.get_object()
+        view.get_authorizenet_response()
+        api_call = view.service.method_calls[0]
+        self.assertTrue(api_call.assert_called_once)
+        api_request = api_call.args[0][0]
+        self.assertEqual(api_request.subscriptionId, str(view.object.pk))
+        self.assertEqual(
+            bool(int(api_request.includeTransactions)),
+            view.get_include_transactions(),
+        )
+
+    def test_get_queryset(self):
+        """Fails if the queryset contains subscriptions associated with a different user."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionDetailView()
+        view.setup(request, pk=1)
+        qs = view.get_queryset()
+        self.assertQuerySetEqual(
+            qs, Subscription.objects.filter(customer_profile__pk=1)
+        )
+
+    def test_get_context_data(self):
+        """Fails if :py:attr:`response` wasn't present in the view context."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionDetailView()
+        view.setup(request, pk=1)
+        view.object = view.get_object()
+        context = view.get_context_data()
+        self.assertIn("response", context.keys())
+
+
+@override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
+class SubscriptionCreateViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_subscription.json",
+    ]
+
+    def setUp(self):
+        self.path = "/subscriptions/create/"
+        self.client = Client()
+        self.client.login(
+            username="testuser", password="super_secure_password1!"
+        )
+
+    def test_get_authorizenet_response(self):
+        """Fails if the Authorizenet API call wasn't executed or was executed with incorrect arguments."""
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionCreateView()
+        view.setup(request)
+        view.get_authorizenet_response()
+        api_call = view.service.method_calls[0]
+        self.assertTrue(api_call.assert_called_once)
+
+    def test_get_form(self):
+        """Fails if :py:meth:`get_form` returns a form with invalid..."""
+        mock_api_response = MagicMock(spec=["profile"])
+        mock_api_response.profile.paymentProfiles = []
+        mock_api_response.profile.shipToList = []
+
+        factory = RequestFactory()
+        request = factory.get(self.path)
+        request.user = get_user_model().objects.get(pk=1)
+        view = views.SubscriptionCreateView()
+        view.setup(request)
+        view.service.execute.return_value = mock_api_response
+        form = view.get_form()
+        expected_qs = SubscriptionPlan.objects.filter(visibility__exact="vis")
+        self.assertQuerySetEqual(
+            form.fields["plan"].queryset.order_by("pk"),
+            expected_qs.order_by("pk"),
+        )
+        self.assertFalse(form.fields["payment_profile"].choices)
+        self.assertFalse(form.fields["shipping_profile"].choices)
