@@ -1,4 +1,5 @@
-from django.test import Client, TestCase, override_settings
+from django.contrib.auth import get_user_model
+from django.test import Client, RequestFactory, TestCase, override_settings
 
 from terminusgps_payments.models import Subscription
 
@@ -167,9 +168,15 @@ class CustomerProfileDetailViewTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(f"?next={self.path}", response.url)
 
+    def test_get_include_issuer_info(self):
+        """Fails if :py:meth:`get_include_issuer_info` doesn't return expected values."""
+        factory = RequestFactory()
+        request = factory.get(self.path, query={"include_issuer_info": "on"})
+        request.user = get_user_model().objects.get(pk=1)
+
 
 @override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")
-class SubscriptionDeleteViewTestCase(TestCase):
+class SubscriptionCancelViewTestCase(TestCase):
     fixtures = [
         "terminusgps_payments/tests/test_user.json",
         "terminusgps_payments/tests/test_customerprofile.json",
@@ -177,7 +184,7 @@ class SubscriptionDeleteViewTestCase(TestCase):
     ]
 
     def setUp(self):
-        self.path = "/subscriptions/1/delete/"
+        self.path = "/subscriptions/1/cancel/"
         self.client = Client()
         self.client.login(
             username="testuser", password="super_secure_password1!"
@@ -191,11 +198,10 @@ class SubscriptionDeleteViewTestCase(TestCase):
         self.assertIn(f"?next={self.path}", response.url)
 
     def test_valid_form(self):
-        """Fails if the subscription wasn't successfully deleted."""
+        """Fails if the subscription wasn't successfully canceled."""
         response = self.client.post(self.path)
         self.assertEqual(response.status_code, 302)
-        with self.assertRaises(Subscription.DoesNotExist):
-            Subscription.objects.get(pk=1)
+        self.assertEqual(Subscription.objects.get(pk=1).status, "canceled")
 
 
 @override_settings(AUTHORIZENET_SERVICE="unittest.mock.Mock")

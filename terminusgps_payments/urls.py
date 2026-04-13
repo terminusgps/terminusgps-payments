@@ -35,9 +35,9 @@ urlpatterns = [
         name="update subscription",
     ),
     path(
-        "subscriptions/<int:pk>/delete/",
-        views.SubscriptionDeleteView.as_view(),
-        name="delete subscription",
+        "subscriptions/<int:pk>/cancel/",
+        views.SubscriptionCancelView.as_view(),
+        name="cancel subscription",
     ),
     path(
         "subscription-plans/details/",

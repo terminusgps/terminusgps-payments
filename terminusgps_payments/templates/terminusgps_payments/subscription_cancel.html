@@ -1,6 +1,6 @@
 {% extends "terminusgps_payments/layout.html" %}
 {% partialdef main %}
-<form method="post" action="{% url 'terminusgps_payments:delete subscription' subscription.pk %}">
+<form method="post" action="{% url 'terminusgps_payments:cancel subscription' subscription.pk %}">
     {% csrf_token %}
     {{ form }}
     <button type="submit">Submit</button>

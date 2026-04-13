@@ -1,13 +1,18 @@
+import datetime
+import logging
 import typing
 
 from authorizenet import apicontractsv1
+from dateutil.relativedelta import relativedelta
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
+from django.db.models import QuerySet
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.generic import (
     DeleteView,
     DetailView,
@@ -28,6 +33,7 @@ from terminusgps_payments.mixins import (
 )
 from terminusgps_payments.models import Subscription, SubscriptionPlan
 
+logger = logging.getLogger(__name__)
 VISIBLE = SubscriptionPlan.SubscriptionPlanVisibility.VISIBLE
 
 
@@ -165,7 +171,7 @@ class CustomerProfileDetailView(
         return context
 
 
-class SubscriptionDeleteView(
+class SubscriptionCancelView(
     LoginRequiredMixin,
     HtmxTemplateResponseMixin,
     AuthorizenetServiceMixin,
@@ -176,14 +182,35 @@ class SubscriptionDeleteView(
     http_method_names = ["get", "post"]
     model = Subscription
     success_url = reverse_lazy("terminusgps_payments:customer profile details")
-    template_name = "terminusgps_payments/subscription_delete.html"
+    template_name = "terminusgps_payments/subscription_cancel.html"
+
+    def get_expires_on(self) -> datetime.date | None:
+        try:
+            response = self.service.execute(
+                api.get_subscription(subscription_id=self.object.pk)
+            )
+        except AuthorizenetError as error:
+            logger.error(error)
+            return
+        date_str = str(response.subscription.paymentSchedule.startDate)
+        return datetime.date.today().replace(
+            day=parse_date(date_str).day
+        ) + relativedelta(months=1)
+
+    def get_queryset(self) -> QuerySet:
+        qs = super().get_queryset()
+        if self.customer_profile is not None:
+            return qs.filter(customer_profile=self.customer_profile)
+        return qs.none()
 
     def form_valid(self, form) -> HttpResponse:
         try:
             self.service.execute(
                 api.cancel_subscription(subscription_id=self.object.pk)
             )
-            self.object.delete()
+            self.object.status = "canceled"
+            self.object.expires_on = self.get_expires_on()
+            self.object.save(update_fields=["status", "expires_on"])
             return HttpResponseRedirect(self.get_success_url())
         except AuthorizenetError as error:
             form.add_error(
@@ -219,6 +246,12 @@ class SubscriptionUpdateView(
         except AuthorizenetError as error:
             messages.error(self.request, error)
             return
+
+    def get_queryset(self) -> QuerySet:
+        qs = super().get_queryset()
+        if self.customer_profile is not None:
+            return qs.filter(customer_profile=self.customer_profile)
+        return qs.none()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -282,14 +315,21 @@ class SubscriptionDetailView(
 
     def get_authorizenet_response(self) -> ObjectifiedElement | None:
         try:
-            kwargs = {
-                "subscription_id": self.object.pk,
-                "include_transactions": self.get_include_transactions(),
-            }
-            return self.service.execute(api.get_subscription(**kwargs))
+            return self.service.execute(
+                api.get_subscription(
+                    subscription_id=self.object.pk,
+                    include_transactions=self.get_include_transactions(),
+                )
+            )
         except AuthorizenetError as error:
             messages.error(self.request, error)
             return
+
+    def get_queryset(self) -> QuerySet:
+        qs = super().get_queryset()
+        if self.customer_profile is not None:
+            return qs.filter(customer_profile=self.customer_profile)
+        return qs.none()
 
     def get_context_data(self, **kwargs) -> dict[str, typing.Any]:
         context = super().get_context_data(**kwargs)
