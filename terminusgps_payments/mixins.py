@@ -13,7 +13,7 @@ class AuthorizenetServiceMixin:
     """
     Adds an Authorizenet service to the view's :py:attr:`service` attribute.
 
-    Passes `service_kwargs` to the service initializer if provided.
+    Passes `service_kwargs` to the service constructor if provided.
 
     """
 
