@@ -332,6 +332,9 @@ class SubscriptionUpdateViewTestCase(TestCase):
     ]
 
     def setUp(self):
+        self.factory = RequestFactory()
+        self.user = get_user_model().objects.get(pk=1)
+        self.view = views.SubscriptionUpdateView()
         self.path = "/subscriptions/1/update/"
         self.client = Client()
         self.client.login(
@@ -359,24 +362,20 @@ class SubscriptionUpdateViewTestCase(TestCase):
 
     def test_get_form_kwargs(self):
         """Fails if 'instance' was in the form kwargs."""
-        factory = RequestFactory()
-        request = factory.get(self.path)
-        request.user = get_user_model().objects.get(pk=1)
-        view = views.SubscriptionUpdateView(pk=1)
-        view.setup(request)
-        kwargs = view.get_form_kwargs()
+        request = self.factory.get(self.path)
+        request.user = self.user
+        self.view.setup(request, pk=1)
+        kwargs = self.view.get_form_kwargs()
         self.assertNotIn("instance", kwargs)
 
     def test_get_queryset(self):
         """Fails if the queryset contains subscriptions associated with a different user."""
-        factory = RequestFactory()
-        request = factory.get(self.path)
-        request.user = get_user_model().objects.get(pk=1)
-        view = views.SubscriptionUpdateView(pk=1)
-        view.setup(request)
-        qs = view.get_queryset()
+        request = self.factory.get(self.path)
+        request.user = self.user
+        self.view.setup(request, pk=1)
+        queryset = self.view.get_queryset()
         self.assertQuerySetEqual(
-            qs, Subscription.objects.filter(customer_profile__pk=1)
+            queryset, Subscription.objects.filter(customer_profile__pk=1)
         )
 
 
@@ -465,6 +464,9 @@ class SubscriptionCreateViewTestCase(TestCase):
     ]
 
     def setUp(self):
+        self.factory = RequestFactory()
+        self.user = get_user_model().objects.get(pk=1)
+        self.view = views.SubscriptionCreateView()
         self.path = "/subscriptions/create/"
         self.client = Client()
         self.client.login(
@@ -473,28 +475,24 @@ class SubscriptionCreateViewTestCase(TestCase):
 
     def test_get_authorizenet_response(self):
         """Fails if the Authorizenet API call wasn't executed or was executed with incorrect arguments."""
-        factory = RequestFactory()
-        request = factory.get(self.path)
-        request.user = get_user_model().objects.get(pk=1)
-        view = views.SubscriptionCreateView()
-        view.setup(request)
-        view.get_authorizenet_response()
-        api_call = view.service.method_calls[0]
+        request = self.factory.get(self.path)
+        request.user = self.user
+        self.view.setup(request)
+        self.view.get_authorizenet_response()
+        api_call = self.view.service.method_calls[0]
         self.assertTrue(api_call.assert_called_once)
 
     def test_get_form(self):
-        """Fails if :py:meth:`get_form` returns a form with invalid..."""
+        """"""
         mock_api_response = MagicMock(spec=["profile"])
         mock_api_response.profile.paymentProfiles = []
         mock_api_response.profile.shipToList = []
 
-        factory = RequestFactory()
-        request = factory.get(self.path)
-        request.user = get_user_model().objects.get(pk=1)
-        view = views.SubscriptionCreateView()
-        view.setup(request)
-        view.service.execute.return_value = mock_api_response
-        form = view.get_form()
+        request = self.factory.get(self.path)
+        request.user = self.user
+        self.view.setup(request)
+        self.view.service.execute.return_value = mock_api_response
+        form = self.view.get_form()
         expected_qs = SubscriptionPlan.objects.filter(visibility__exact="vis")
         self.assertQuerySetEqual(
             form.fields["plan"].queryset.order_by("pk"),
@@ -502,3 +500,39 @@ class SubscriptionCreateViewTestCase(TestCase):
         )
         self.assertFalse(form.fields["payment_profile"].choices)
         self.assertFalse(form.fields["shipping_profile"].choices)
+
+
+class SubscriptionPlanDetailViewTestCase(TestCase):
+    fixtures = [
+        "terminusgps_payments/tests/test_user.json",
+        "terminusgps_payments/tests/test_customerprofile.json",
+        "terminusgps_payments/tests/test_subscription.json",
+    ]
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.view = views.SubscriptionPlanDetailView()
+        self.user = get_user_model().objects.get(pk=1)
+        self.path = "/subscription-plans/details/"
+        self.client = Client()
+        self.client.login(
+            **{"username": "testuser", "password": "super_secure_password1!"}
+        )
+
+    def test_get_without_query_param_returns_404(self):
+        """Fails if hitting the endpoint without `plan` query parameter returns anything other than 404."""
+        response = self.client.get(self.path, query_params={})
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_hidden_plan_returns_404(self):
+        """Fails if a request pointing to a hidden subscription plan returns anything other than 404."""
+        response = self.client.get(self.path, query_params={"plan": 4})
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_object(self):
+        """Fails if :py:meth:`get_object` wasn't updated according to query parameters."""
+        request = self.factory.get(self.path, query_params={"plan": 1})
+        request.user = self.user
+        self.view.setup(request)
+        obj = self.view.get_object(queryset=None)
+        self.assertEqual(obj, SubscriptionPlan.objects.get(pk=1))
